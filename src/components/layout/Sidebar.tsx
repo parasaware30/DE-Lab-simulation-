@@ -32,43 +32,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'OVERVIEW',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 'Home' },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       ],
     },
     {
       title: 'CORE SIMULATION',
       items: [
-        { id: 'gates', label: 'Logic Gates', icon: GitCommit, badge: '7 Gates' },
-        { id: 'builder', label: 'Circuit Builder', icon: Workflow, badge: 'Interactive' },
-        { id: 'truthtable', label: 'Truth Tables', icon: Table, badge: 'CSV Export' },
+        { id: 'gates', label: 'Logic Gates', icon: GitCommit },
+        { id: 'builder', label: 'Circuit Builder', icon: Workflow },
+        { id: 'truthtable', label: 'Truth Tables', icon: Table },
       ],
     },
     {
       title: 'BOOLEAN ANALYSIS',
       items: [
-        { id: 'boolean', label: 'Boolean Solver', icon: Binary, badge: 'Step-by-Step' },
-        { id: 'kmap', label: 'Karnaugh Maps', icon: Grid3X3, badge: '2-4 Vars' },
+        { id: 'boolean', label: 'Boolean Solver', icon: Binary },
+        { id: 'kmap', label: 'Karnaugh Maps', icon: Grid3X3 },
       ],
     },
     {
       title: 'CIRCUIT FAMILIES',
       items: [
-        { id: 'combinational', label: 'Combinational', icon: Network, badge: '9 Circuits' },
-        { id: 'sequential', label: 'Sequential & Clock', icon: Activity, badge: 'Flip-Flops' },
+        { id: 'combinational', label: 'Combinational', icon: Network },
+        { id: 'sequential', label: 'Sequential & Clock', icon: Activity },
       ],
     },
     {
       title: 'TOOLS & DEMOS',
       items: [
-        { id: 'numbers', label: 'Number Systems', icon: Calculator, badge: 'Radix' },
-        { id: 'demos', label: 'Digital Demos', icon: MonitorPlay, badge: '6 Systems' },
+        { id: 'numbers', label: 'Number Systems', icon: Calculator },
+        { id: 'demos', label: 'Digital Demos', icon: MonitorPlay },
       ],
     },
     {
       title: 'EDUCATION & WORKSPACE',
       items: [
-        { id: 'learning', label: 'Learning & Quizzes', icon: GraduationCap, badge: 'Practice' },
-        { id: 'projects', label: 'Project Vault', icon: FolderArchive, badge: 'Local' },
+        { id: 'learning', label: 'Learning & Quizzes', icon: GraduationCap },
+        { id: 'projects', label: 'Project Vault', icon: FolderArchive },
       ],
     },
   ];
@@ -119,16 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Icon className={`h-4 w-4 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`} />
                         <span>{item.label}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          isActive 
-                            ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/40' 
-                            : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {item.badge}
-                        </span>
-                        {isActive && <ChevronRight className="h-3 w-3 text-emerald-400" />}
-                      </div>
+                      {isActive && <ChevronRight className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
                     </button>
                   );
                 })}
