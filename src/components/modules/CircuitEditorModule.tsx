@@ -10,6 +10,7 @@ import { simulateCircuit } from '../../engine/simulator';
 import { generateCircuitTruthTable, truthTableToCSV } from '../../engine/truthTableGenerator';
 import { SAMPLE_CIRCUITS } from '../../engine/sampleCircuits';
 import { saveProject, exportProjectAsDigitalXML } from '../../engine/storage/projectStore';
+import { findWireCrossovers, getJumpArcPath, WireGeometryInput } from '../../engine/wireCrossover';
 import { 
   Play, 
   Pause, 
@@ -313,6 +314,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
   const [editorMode, setEditorMode] = useState<'SELECT' | 'WIRE'>('SELECT');
+  const [wireJumpsEnabled, setWireJumpsEnabled] = useState<boolean>(true);
   
   // Wire creation state
   const [wireStart, setWireStart] = useState<{ nodeId: string; portIndex: number; type: 'input' | 'output' } | null>(null);
@@ -374,6 +376,30 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     if (!isSimulating) return { nodes: circuit.nodes, wires: circuit.wires, isValid: true, errors: [], warnings: [], cyclesDetected: false };
     return simulateCircuit(circuit);
   }, [circuit, isSimulating]);
+
+  // Calculate Wire Crossing (Jump / Crossover) Bridges
+  const wireCrossovers = React.useMemo(() => {
+    if (!wireJumpsEnabled || simResult.wires.length < 2) return [];
+
+    const geometryInputs: WireGeometryInput[] = [];
+    for (const wire of simResult.wires) {
+      const fromNode = simResult.nodes.find(n => n.id === wire.fromNodeId);
+      const toNode = simResult.nodes.find(n => n.id === wire.toNodeId);
+      if (!fromNode || !toNode) continue;
+
+      const p1 = getPortCoordinates(fromNode, wire.fromPortIndex, 'output');
+      const p2 = getPortCoordinates(toNode, wire.toPortIndex, 'input');
+      geometryInputs.push({
+        id: wire.id,
+        p1,
+        p2,
+        color: wire.color,
+        value: wire.value,
+      });
+    }
+
+    return findWireCrossovers(geometryInputs);
+  }, [simResult.wires, simResult.nodes, wireJumpsEnabled]);
 
   // Keep internal circuit synchronized with simulated values
   useEffect(() => {
@@ -972,6 +998,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             <Cable className="h-4 w-4" />
           </button>
 
+          {/* Wire Crossing (Jump / Crossover) Toggle */}
+          <button
+            onClick={() => {
+              setWireJumpsEnabled(prev => !prev);
+              setToastMessage(`Wire Crossover Jumps: ${!wireJumpsEnabled ? 'Enabled' : 'Disabled'}`);
+            }}
+            title={`Wire Crossing (Jump / Crossover): ${wireJumpsEnabled ? 'ON' : 'OFF'} (Click to toggle)`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+              wireJumpsEnabled
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                : 'text-slate-400 hover:bg-slate-800 border-slate-700/60'
+            }`}
+          >
+            <span className="text-sm font-bold leading-none select-none">⌒</span>
+            <span className="hidden md:inline">Jump</span>
+            <span className={`text-[9px] px-1 py-0.5 rounded font-mono font-bold ${
+              wireJumpsEnabled ? 'bg-amber-400/20 text-amber-200' : 'bg-slate-700 text-slate-400'
+            }`}>
+              {wireJumpsEnabled ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
           <div className="h-4 w-[1px] bg-slate-800 mx-1" />
 
           <button
@@ -1452,6 +1500,75 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     stroke={isSelected ? '#f59e0b' : '#0f172a'}
                     strokeWidth={isSelected ? 2 : 1.5}
                     style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                  />
+                </g>
+              );
+            })}
+
+            {/* Wire Crossing (Jump / Crossover) Bridges */}
+            {wireJumpsEnabled && wireCrossovers.map(jump => {
+              const jumpWire = simResult.wires.find(w => w.id === jump.jumpingWireId);
+              const isSelected = selectedWireId === jump.jumpingWireId;
+              const isHigh = jumpWire?.value === 1;
+              const isUndefined = jumpWire?.value === 'X' || jumpWire?.value === 'Z';
+
+              let strokeColor: string;
+              let glowColor: string;
+              if (isSelected) {
+                strokeColor = '#f59e0b';
+                glowColor = '#f59e0b';
+              } else if (jumpWire?.color) {
+                strokeColor = jumpWire.color;
+                glowColor = jumpWire.color;
+              } else {
+                strokeColor = isHigh ? '#10b981' : isUndefined ? '#eab308' : '#64748b';
+                glowColor = isHigh ? '#10b981' : '#eab308';
+              }
+
+              const { arcPath, maskCircle } = getJumpArcPath(jump.x, jump.y, jump.jumpAngle, 8);
+
+              return (
+                <g 
+                  key={jump.id}
+                  className="cursor-pointer group"
+                  onClick={e => {
+                    e.stopPropagation();
+                    ignoreNextCanvasClickRef.current = true;
+                    setSelectedWireId(jump.jumpingWireId);
+                    setSelectedNodeId(null);
+                    setToastMessage('Crossover Jump selected (Jumping Wire).');
+                  }}
+                >
+                  {/* Background clearance mask to block out the under-wire at crossing */}
+                  <circle
+                    cx={maskCircle.cx}
+                    cy={maskCircle.cy}
+                    r={maskCircle.r}
+                    fill="#0f172a"
+                    stroke="#1e293b"
+                    strokeWidth="1"
+                  />
+
+                  {/* Glowing halo for the jump arch */}
+                  {(isSelected || isHigh || (jumpWire?.color && isHigh)) && (
+                    <path
+                      d={arcPath}
+                      fill="none"
+                      stroke={glowColor}
+                      strokeWidth={isSelected ? '8' : '6'}
+                      strokeOpacity={isSelected ? 0.6 : 0.3}
+                      strokeLinecap="round"
+                    />
+                  )}
+
+                  {/* Main Jump Arch Path */}
+                  <path
+                    d={arcPath}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth={isSelected ? '4' : '3'}
+                    strokeLinecap="round"
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
                   />
                 </g>
               );
