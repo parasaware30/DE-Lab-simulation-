@@ -119,9 +119,9 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
-    case 'SEVEN_SEG': {
-      // 7-segment display node with 7 or 4 inputs
-      // Simply reflects inputs to state
+    case 'SEVEN_SEG':
+    case 'COMMENT': {
+      // Passive annotation element or 7-segment display
       break;
     }
 

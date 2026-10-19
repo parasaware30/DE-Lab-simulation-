@@ -6,7 +6,7 @@ import {
   GateType, 
   LogicValue 
 } from '../../engine/types';
-import { simulateCircuit, validateCircuit } from '../../engine/simulator';
+import { simulateCircuit } from '../../engine/simulator';
 import { generateCircuitTruthTable, truthTableToCSV } from '../../engine/truthTableGenerator';
 import { SAMPLE_CIRCUITS } from '../../engine/sampleCircuits';
 import { saveProject, exportProjectAsDigitalXML } from '../../engine/storage/projectStore';
@@ -28,7 +28,8 @@ import {
   Sparkles,
   MousePointer,
   Cable,
-  CheckCircle2,
+  FileText,
+  Check,
   X
 } from 'lucide-react';
 
@@ -37,10 +38,35 @@ interface CircuitEditorProps {
   onSaveToVault?: (circuit: Circuit) => void;
 }
 
+export const NOTE_COLORS = [
+  { name: 'Yellow', value: '#eab308' },
+  { name: 'Emerald', value: '#10b981' },
+  { name: 'Cyan', value: '#06b6d4' },
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Purple', value: '#a855f7' },
+  { name: 'Rose', value: '#f43f5e' },
+  { name: 'Orange', value: '#f97316' },
+  { name: 'Slate', value: '#64748b' },
+];
+
+export const WIRE_COLORS = [
+  { name: 'Auto (State)', value: '' },
+  { name: 'Green', value: '#10b981' },
+  { name: 'Red', value: '#ef4444' },
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Amber', value: '#f59e0b' },
+  { name: 'Purple', value: '#a855f7' },
+  { name: 'Cyan', value: '#06b6d4' },
+  { name: 'White', value: '#f8fafc' },
+];
+
 /**
  * Calculates uniform dimensions for each component type
  */
 export const getNodeDimensions = (node: CircuitNode) => {
+  if (node.type === 'COMMENT') {
+    return { width: node.width || 190, height: node.height || 120 };
+  }
   if (node.type.endsWith('_FF')) {
     return { width: 120, height: 96 };
   }
@@ -102,7 +128,6 @@ const GateSymbol: React.FC<{
   const gy = (height - gh) / 2 + 8;
   const midY = gy + gh / 2;
 
-  // Compute lead attachment points
   const inY0 = 28;
   const inY1 = inputCount > 1 ? height - 12 : 28 + (height - 40) / 2;
 
@@ -449,8 +474,19 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     let outputs: CircuitNode['outputs'] = [];
     let label: string = type;
     let state: CircuitNode['state'] = undefined;
+    let color: string | undefined = undefined;
+    let commentText: string | undefined = undefined;
+    let width: number | undefined = undefined;
+    let height: number | undefined = undefined;
 
     switch (type) {
+      case 'COMMENT':
+        label = 'Note';
+        color = '#eab308';
+        commentText = 'Double-click or type notes, equations or pin descriptions here...';
+        width = 190;
+        height = 120;
+        break;
       case 'SWITCH':
         label = `SW_${circuit.nodes.filter(n => n.type === 'SWITCH').length + 1}`;
         outputs = [{ id: 'out_0', name: 'Q', type: 'output', value: 0 }];
@@ -527,6 +563,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       inputs,
       outputs,
       state,
+      color,
+      commentText,
+      width,
+      height,
     };
 
     pushHistory({
@@ -566,6 +606,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       inputs: target.inputs.map(p => ({ ...p })),
       outputs: target.outputs.map(p => ({ ...p })),
       state: target.state ? { ...target.state } : undefined,
+      color: target.color,
+      commentText: target.commentText,
+      width: target.width,
+      height: target.height,
     };
 
     pushHistory({
@@ -578,7 +622,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
   // Bidirectional Port MouseDown: initiates wire connection without dragging parent node
   const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, portIndex: number, type: 'input' | 'output') => {
-    e.stopPropagation(); // CRITICAL: Stop propagation so component doesn't drag
+    e.stopPropagation();
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     setMousePos(coords);
@@ -593,7 +637,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const handlePortClickOrUp = (e: React.MouseEvent, targetNodeId: string, targetPortIndex: number, targetType: 'input' | 'output') => {
     e.stopPropagation();
 
-    // If no wire started yet, start one from this port!
     if (!wireStart) {
       setWireStart({ nodeId: targetNodeId, portIndex: targetPortIndex, type: targetType });
       setEditorMode('WIRE');
@@ -602,14 +645,12 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       return;
     }
 
-    // Cancel if clicked exact same port
     if (wireStart.nodeId === targetNodeId && wireStart.portIndex === targetPortIndex && wireStart.type === targetType) {
       setWireStart(null);
       setToastMessage('Wiring cancelled.');
       return;
     }
 
-    // Validate: must connect an OUTPUT to an INPUT
     if (wireStart.type === targetType) {
       setToastMessage(`Cannot connect ${targetType.toUpperCase()} to ${targetType.toUpperCase()}. Please connect an OUTPUT pin to an INPUT pin.`);
       return;
@@ -623,7 +664,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     const fromNode = circuit.nodes.find(n => n.id === fromNodeId);
     const toNode = circuit.nodes.find(n => n.id === toNodeId);
 
-    // Replace wire if one already connects to this destination port
     const existingIdx = circuit.wires.findIndex(
       w => w.toNodeId === toNodeId && w.toPortIndex === toPortIndex
     );
@@ -699,7 +739,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     }
   };
 
-  // Canvas background click clears selection and wire-start
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === svgRef.current) {
       if (wireStart) {
@@ -711,7 +750,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     }
   };
 
-  // Start Node Dragging
   const handleNodeDragStart = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
     setSelectedNodeId(nodeId);
@@ -726,14 +764,12 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     });
   };
 
-  // Save current circuit to storage
   const handleSaveCircuit = () => {
     saveProject(circuit);
     if (onSaveToVault) onSaveToVault(circuit);
     setToastMessage(`Project "${circuit.name}" saved to local storage!`);
   };
 
-  // Clear Canvas
   const handleClearCircuit = () => {
     pushHistory({
       ...circuit,
@@ -746,14 +782,12 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     setToastMessage('Circuit cleared.');
   };
 
-  // Generate Truth Table
   const handleOpenTruthTable = () => {
     const res = generateCircuitTruthTable(circuit);
     setTruthTableData(res);
     setShowTruthTableModal(true);
   };
 
-  // Export SVG
   const handleExportSVG = () => {
     if (!svgRef.current) return;
     const svgData = new XMLSerializer().serializeToString(svgRef.current);
@@ -770,6 +804,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   };
 
   const selectedNode = circuit.nodes.find(n => n.id === selectedNodeId);
+  const selectedWire = circuit.wires.find(w => w.id === selectedWireId);
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-slate-950 overflow-hidden relative select-none">
@@ -959,6 +994,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Component Palette (Left Panel) */}
         <div className="w-60 border-r border-slate-800 bg-slate-900/95 p-3 overflow-y-auto space-y-4 shrink-0 hidden md:block z-10 shadow-xl">
+          {/* Annotations & Notes */}
+          <div>
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Documentation & Notes</span>
+              <span className="text-[9px] text-amber-500 font-bold">New</span>
+            </h4>
+            <div className="grid grid-cols-1 gap-1.5">
+              <button
+                onClick={() => addComponent('COMMENT')}
+                className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all hover:border-amber-400"
+              >
+                <div className="w-6 h-6 rounded bg-amber-500/30 border border-amber-400 flex items-center justify-center text-amber-300">
+                  <FileText className="h-3.5 w-3.5" />
+                </div>
+                <div className="text-left">
+                  <div className="text-white font-bold leading-tight">Comment Box</div>
+                  <div className="text-[9px] text-slate-400 leading-tight">Notes & Color Tag</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
               <span>Inputs & Clock</span>
@@ -1135,13 +1192,21 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               const isSelected = selectedWireId === wire.id;
               const isHigh = wire.value === 1;
               const isUndefined = wire.value === 'X' || wire.value === 'Z';
-              const strokeColor = isSelected
-                ? '#f59e0b'
-                : isHigh
-                ? '#10b981'
-                : isUndefined
-                ? '#eab308'
-                : '#475569';
+
+              // Custom Color Logic for Wires
+              let strokeColor: string;
+              let glowColor: string;
+
+              if (isSelected) {
+                strokeColor = '#f59e0b';
+                glowColor = '#f59e0b';
+              } else if (wire.color) {
+                strokeColor = isHigh ? wire.color : `${wire.color}88`;
+                glowColor = wire.color;
+              } else {
+                strokeColor = isHigh ? '#10b981' : isUndefined ? '#eab308' : '#475569';
+                glowColor = isHigh ? '#10b981' : '#eab308';
+              }
 
               const midX = (p1.x + p2.x) / 2;
               const midY = (p1.y + p2.y) / 2;
@@ -1153,24 +1218,24 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     d={pathD}
                     fill="none"
                     stroke="transparent"
-                    strokeWidth="20"
+                    strokeWidth="22"
                     className="cursor-pointer"
                     onClick={e => {
                       e.stopPropagation();
                       setSelectedWireId(wire.id);
                       setSelectedNodeId(null);
-                      setToastMessage('Wire selected. Press Delete or click (X) to delete.');
+                      setToastMessage('Wire selected. Choose a color or delete.');
                     }}
                   />
 
                   {/* Wire Glowing Halo */}
-                  {(isSelected || isHigh) && (
+                  {(isSelected || isHigh || (wire.color && isHigh)) && (
                     <path
                       d={pathD}
                       fill="none"
-                      stroke={isSelected ? '#f59e0b' : '#10b981'}
+                      stroke={glowColor}
                       strokeWidth={isSelected ? '8' : '6'}
-                      strokeOpacity={isSelected ? 0.4 : 0.25}
+                      strokeOpacity={isSelected ? 0.45 : 0.25}
                       strokeLinecap="round"
                     />
                   )}
@@ -1190,37 +1255,68 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   <circle
                     cx={midX}
                     cy={midY}
-                    r="4"
+                    r="4.5"
                     fill={strokeColor}
                     stroke="#0f172a"
                     strokeWidth="1.5"
                   />
 
-                  {/* Red Delete Button on Selected Wire */}
+                  {/* Selected Wire Canvas Floating Mini Toolbar (Colors + Delete) */}
                   {isSelected && (
-                    <g
-                      transform={`translate(${midX}, ${midY})`}
-                      className="cursor-pointer"
-                      onClick={e => {
-                        e.stopPropagation();
-                        pushHistory({
-                          ...circuit,
-                          wires: circuit.wires.filter(w => w.id !== wire.id),
-                        });
-                        setSelectedWireId(null);
-                        setToastMessage('Wire deleted.');
-                      }}
-                    >
-                      <circle r="10" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-                      <text
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill="#ffffff"
-                        fontSize="10"
-                        fontWeight="bold"
+                    <g transform={`translate(${midX}, ${midY - 26})`} className="cursor-pointer">
+                      <rect
+                        x="-75"
+                        y="-14"
+                        width="150"
+                        height="28"
+                        rx="14"
+                        fill="#0f172a"
+                        stroke="#f59e0b"
+                        strokeWidth="1.5"
+                        filter="drop-shadow(0 4px 8px rgba(0,0,0,0.6))"
+                      />
+                      {WIRE_COLORS.slice(0, 6).map((wc, cIdx) => (
+                        <circle
+                          key={wc.name}
+                          cx={-55 + cIdx * 18}
+                          cy="0"
+                          r="6.5"
+                          fill={wc.value || '#64748b'}
+                          stroke={wire.color === wc.value ? '#ffffff' : '#1e293b'}
+                          strokeWidth={wire.color === wc.value ? '2' : '1'}
+                          onClick={e => {
+                            e.stopPropagation();
+                            pushHistory({
+                              ...circuit,
+                              wires: circuit.wires.map(w => w.id === wire.id ? { ...w, color: wc.value || undefined } : w),
+                            });
+                            setToastMessage(`Wire color changed to ${wc.name}.`);
+                          }}
+                        />
+                      ))}
+                      <g
+                        transform="translate(56, 0)"
+                        onClick={e => {
+                          e.stopPropagation();
+                          pushHistory({
+                            ...circuit,
+                            wires: circuit.wires.filter(w => w.id !== wire.id),
+                          });
+                          setSelectedWireId(null);
+                          setToastMessage('Wire deleted.');
+                        }}
                       >
-                        ✕
-                      </text>
+                        <circle r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+                        <text
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#ffffff"
+                          fontSize="9"
+                          fontWeight="bold"
+                        >
+                          ✕
+                        </text>
+                      </g>
                     </g>
                   )}
                 </g>
@@ -1291,6 +1387,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             {/* Circuit Nodes */}
             {simResult.nodes.map(node => {
               const isSelected = selectedNodeId === node.id;
+              const isComment = node.type === 'COMMENT';
               const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER'].includes(node.type);
               const isSwitch = node.type === 'SWITCH' || node.type === 'CLOCK';
               const isLed = node.type === 'LED';
@@ -1304,256 +1401,329 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   onMouseDown={e => handleNodeDragStart(e, node.id)}
                   className="cursor-move group"
                 >
-                  {/* Node Background Enclosure */}
-                  <rect
-                    width={width}
-                    height={height}
-                    rx="8"
-                    fill="#1e293b"
-                    stroke={isSelected ? '#10b981' : isFF ? '#6b21a8' : '#334155'}
-                    strokeWidth={isSelected ? '2.5' : '1.5'}
-                    filter={isSelected ? 'drop-shadow(0 0 10px rgba(16, 185, 129, 0.35))' : undefined}
-                    className="transition-colors shadow-xl"
-                  />
-
-                  {/* Component Header / Label */}
-                  <text
-                    x={width / 2}
-                    y="16"
-                    fill="#94a3b8"
-                    fontSize="9.5"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    className="select-none tracking-wide"
-                  >
-                    {node.label || node.type}
-                  </text>
-
-                  {/* IEEE / ANSI Logic Gate Symbol Rendered in Center */}
-                  {isGate && (
-                    <GateSymbol
-                      type={node.type}
-                      width={width}
-                      height={height}
-                      strokeColor={isSelected ? '#34d399' : '#38bdf8'}
-                      inputCount={node.inputs.length}
-                    />
-                  )}
-
-                  {/* Interactive Switch Widget */}
-                  {isSwitch && (
-                    <g
-                      onClick={e => {
-                        e.stopPropagation();
-                        toggleSwitch(node.id);
-                      }}
-                      className="cursor-pointer"
-                    >
+                  {/* Comment Box / Note Annotation Rendering */}
+                  {isComment ? (
+                    <g>
+                      {/* Background Note Card */}
                       <rect
-                        x="24"
-                        y="26"
-                        width="52"
-                        height="24"
-                        rx="12"
-                        fill={node.state?.highValue ? '#10b981' : '#334155'}
-                        className="transition-colors"
+                        width={width}
+                        height={height}
+                        rx="8"
+                        fill={node.color ? `${node.color}18` : '#eab30818'}
+                        stroke={isSelected ? '#10b981' : node.color || '#eab308'}
+                        strokeWidth={isSelected ? '2.5' : '1.5'}
+                        strokeDasharray={isSelected ? undefined : '4 2'}
+                        filter="drop-shadow(0 4px 10px rgba(0,0,0,0.5))"
                       />
-                      <circle
-                        cx={node.state?.highValue ? '62' : '36'}
-                        cy="38"
-                        r="9"
-                        fill="#ffffff"
-                        filter="drop-shadow(0 1px 3px rgba(0,0,0,0.5))"
-                        className="transition-all"
+                      {/* Header bar */}
+                      <rect
+                        width={width}
+                        height="26"
+                        rx="8"
+                        fill={node.color ? `${node.color}30` : '#eab30830'}
+                      />
+                      <rect
+                        y="18"
+                        width={width}
+                        height="8"
+                        fill={node.color ? `${node.color}30` : '#eab30830'}
                       />
                       <text
-                        x="50"
-                        y="66"
-                        fill={node.state?.highValue ? '#10b981' : '#64748b'}
+                        x="10"
+                        y="17"
+                        fill={node.color || '#eab308'}
                         fontSize="10"
                         fontWeight="bold"
-                        textAnchor="middle"
+                        className="select-none tracking-wide"
                       >
-                        {node.state?.highValue ? '1 (HIGH)' : '0 (LOW)'}
+                        📌 {node.label || 'Note'}
                       </text>
-                    </g>
-                  )}
 
-                  {/* Interactive LED Indicator Lamp */}
-                  {isLed && (
-                    <g>
-                      <circle
-                        cx={width / 2}
-                        cy="42"
-                        r="16"
-                        fill={node.inputs[0]?.value === 1 ? '#10b981' : '#1e293b'}
-                        stroke={node.inputs[0]?.value === 1 ? '#34d399' : '#475569'}
-                        strokeWidth="3"
-                        filter={node.inputs[0]?.value === 1 ? 'drop-shadow(0 0 10px #10b981)' : undefined}
+                      {/* Header Quick Color Swatches */}
+                      {NOTE_COLORS.slice(0, 4).map((nc, cIdx) => (
+                        <circle
+                          key={nc.name}
+                          cx={width - 50 + cIdx * 12}
+                          cy="13"
+                          r="4.5"
+                          fill={nc.value}
+                          stroke={node.color === nc.value ? '#ffffff' : '#0f172a'}
+                          strokeWidth="1.2"
+                          className="cursor-pointer hover:scale-125 transition-transform"
+                          onClick={e => {
+                            e.stopPropagation();
+                            pushHistory({
+                              ...circuit,
+                              nodes: circuit.nodes.map(n => n.id === node.id ? { ...n, color: nc.value } : n),
+                            });
+                            setToastMessage(`Note color: ${nc.name}`);
+                          }}
+                        />
+                      ))}
+
+                      {/* Editable Textarea inside foreignObject */}
+                      <foreignObject x="8" y="30" width={width - 16} height={height - 36}>
+                        <textarea
+                          value={node.commentText || ''}
+                          onChange={e => {
+                            const newText = e.target.value;
+                            setCircuit(prev => ({
+                              ...prev,
+                              nodes: prev.nodes.map(n => n.id === node.id ? { ...n, commentText: newText } : n),
+                            }));
+                          }}
+                          onMouseDown={e => e.stopPropagation()}
+                          placeholder="Type notes, formulas or pin descriptions here..."
+                          className="w-full h-full bg-transparent text-slate-100 text-xs resize-none outline-none font-sans leading-relaxed p-1"
+                          style={{ color: '#f8fafc' }}
+                        />
+                      </foreignObject>
+                    </g>
+                  ) : (
+                    <>
+                      {/* Node Background Enclosure */}
+                      <rect
+                        width={width}
+                        height={height}
+                        rx="8"
+                        fill="#1e293b"
+                        stroke={isSelected ? '#10b981' : isFF ? '#6b21a8' : '#334155'}
+                        strokeWidth={isSelected ? '2.5' : '1.5'}
+                        filter={isSelected ? 'drop-shadow(0 0 10px rgba(16, 185, 129, 0.35))' : undefined}
+                        className="transition-colors shadow-xl"
                       />
+
+                      {/* Component Header / Label */}
                       <text
                         x={width / 2}
-                        y="46"
-                        fill={node.inputs[0]?.value === 1 ? '#ffffff' : '#64748b'}
-                        fontSize="12"
+                        y="16"
+                        fill="#94a3b8"
+                        fontSize="9.5"
                         fontWeight="bold"
                         textAnchor="middle"
+                        className="select-none tracking-wide"
                       >
-                        {node.inputs[0]?.value === 1 ? '1' : '0'}
+                        {node.label || node.type}
                       </text>
-                    </g>
-                  )}
 
-                  {/* Flip-Flop Clock Wedge Graphic */}
-                  {isFF && (
-                    <g>
-                      {/* Dynamic clock triangle on CLK input pin */}
-                      <path d="M 0 66 L 8 70 L 0 74 Z" fill="none" stroke="#94a3b8" strokeWidth="1.5" />
-                    </g>
-                  )}
-
-                  {/* Input Ports (Left Pins) */}
-                  {node.inputs.map((port, pIdx) => {
-                    const portCoord = getPortCoordinates(node, pIdx, 'input');
-                    const localX = portCoord.x - node.x;
-                    const localY = portCoord.y - node.y;
-                    const pVal = port.value;
-                    const pColor = pVal === 1 ? '#10b981' : pVal === 0 ? '#64748b' : '#eab308';
-                    const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portIndex === pIdx && hoveredPort?.type === 'input';
-                    const isStart = wireStart?.nodeId === node.id && wireStart?.portIndex === pIdx && wireStart?.type === 'input';
-
-                    return (
-                      <g key={port.id} className="group">
-                        {/* Glowing Aura Ring when hovered or active */}
-                        {(isHovered || isStart) && (
-                          <circle
-                            cx={localX}
-                            cy={localY}
-                            r="10"
-                            fill="none"
-                            stroke="#10b981"
-                            strokeWidth="2.5"
-                            className="animate-ping opacity-75"
-                          />
-                        )}
-
-                        {/* Visible Pin Circle */}
-                        <circle
-                          cx={localX}
-                          cy={localY}
-                          r={isHovered ? 6 : 4.5}
-                          fill={pColor}
-                          stroke="#0f172a"
-                          strokeWidth="2"
-                          className="transition-all"
+                      {/* IEEE / ANSI Logic Gate Symbol Rendered in Center */}
+                      {isGate && (
+                        <GateSymbol
+                          type={node.type}
+                          width={width}
+                          height={height}
+                          strokeColor={isSelected ? '#34d399' : '#38bdf8'}
+                          inputCount={node.inputs.length}
                         />
+                      )}
 
-                        {/* Port Label */}
-                        <text
-                          x={localX + 8}
-                          y={localY + 3.5}
-                          fill="#94a3b8"
-                          fontSize="8.5"
-                          fontFamily="monospace"
-                          fontWeight="bold"
+                      {/* Interactive Switch Widget */}
+                      {isSwitch && (
+                        <g
+                          onClick={e => {
+                            e.stopPropagation();
+                            toggleSwitch(node.id);
+                          }}
+                          className="cursor-pointer"
                         >
-                          {port.name || `In${pIdx + 1}`}
-                        </text>
-
-                        {/* Large Transparent Hit Circle for effortless click / touch */}
-                        <circle
-                          cx={localX}
-                          cy={localY}
-                          r="16"
-                          fill="transparent"
-                          className="cursor-crosshair"
-                          onMouseDown={e => handlePortMouseDown(e, node.id, pIdx, 'input')}
-                          onMouseUp={e => handlePortClickOrUp(e, node.id, pIdx, 'input')}
-                          onClick={e => handlePortClickOrUp(e, node.id, pIdx, 'input')}
-                          onMouseEnter={() => setHoveredPort({ nodeId: node.id, portIndex: pIdx, type: 'input' })}
-                          onMouseLeave={() => setHoveredPort(null)}
-                        />
-                      </g>
-                    );
-                  })}
-
-                  {/* Output Ports (Right Pins) */}
-                  {node.outputs.map((port, pIdx) => {
-                    const portCoord = getPortCoordinates(node, pIdx, 'output');
-                    const localX = portCoord.x - node.x;
-                    const localY = portCoord.y - node.y;
-                    const pVal = port.value;
-                    const pColor = pVal === 1 ? '#10b981' : pVal === 0 ? '#64748b' : '#eab308';
-                    const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portIndex === pIdx && hoveredPort?.type === 'output';
-                    const isStart = wireStart?.nodeId === node.id && wireStart?.portIndex === pIdx && wireStart?.type === 'output';
-
-                    return (
-                      <g key={port.id} className="group">
-                        {/* Glowing Aura Ring when hovered or active */}
-                        {(isHovered || isStart) && (
-                          <circle
-                            cx={localX}
-                            cy={localY}
-                            r="10"
-                            fill="none"
-                            stroke="#10b981"
-                            strokeWidth="2.5"
-                            className="animate-ping opacity-75"
+                          <rect
+                            x="24"
+                            y="26"
+                            width="52"
+                            height="24"
+                            rx="12"
+                            fill={node.state?.highValue ? '#10b981' : '#334155'}
+                            className="transition-colors"
                           />
-                        )}
+                          <circle
+                            cx={node.state?.highValue ? '62' : '36'}
+                            cy="38"
+                            r="9"
+                            fill="#ffffff"
+                            filter="drop-shadow(0 1px 3px rgba(0,0,0,0.5))"
+                            className="transition-all"
+                          />
+                          <text
+                            x="50"
+                            y="66"
+                            fill={node.state?.highValue ? '#10b981' : '#64748b'}
+                            fontSize="10"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {node.state?.highValue ? '1 (HIGH)' : '0 (LOW)'}
+                          </text>
+                        </g>
+                      )}
 
-                        {/* Visible Pin Circle */}
-                        <circle
-                          cx={localX}
-                          cy={localY}
-                          r={isHovered ? 6 : 4.5}
-                          fill={pColor}
-                          stroke="#0f172a"
-                          strokeWidth="2"
-                          className="transition-all"
-                        />
+                      {/* Interactive LED Indicator Lamp */}
+                      {isLed && (
+                        <g>
+                          <circle
+                            cx={width / 2}
+                            cy="42"
+                            r="16"
+                            fill={node.inputs[0]?.value === 1 ? '#10b981' : '#1e293b'}
+                            stroke={node.inputs[0]?.value === 1 ? '#34d399' : '#475569'}
+                            strokeWidth="3"
+                            filter={node.inputs[0]?.value === 1 ? 'drop-shadow(0 0 10px #10b981)' : undefined}
+                          />
+                          <text
+                            x={width / 2}
+                            y="46"
+                            fill={node.inputs[0]?.value === 1 ? '#ffffff' : '#64748b'}
+                            fontSize="12"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {node.inputs[0]?.value === 1 ? '1' : '0'}
+                          </text>
+                        </g>
+                      )}
 
-                        {/* Port Label */}
-                        <text
-                          x={localX - 8}
-                          y={localY + 3.5}
-                          fill="#94a3b8"
-                          fontSize="8.5"
-                          fontFamily="monospace"
-                          fontWeight="bold"
-                          textAnchor="end"
-                        >
-                          {port.name || 'Out'}
-                        </text>
+                      {/* Flip-Flop Clock Wedge Graphic */}
+                      {isFF && (
+                        <g>
+                          <path d="M 0 66 L 8 70 L 0 74 Z" fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                        </g>
+                      )}
 
-                        {/* Large Transparent Hit Circle for effortless click / touch */}
-                        <circle
-                          cx={localX}
-                          cy={localY}
-                          r="16"
-                          fill="transparent"
-                          className="cursor-crosshair"
-                          onMouseDown={e => handlePortMouseDown(e, node.id, pIdx, 'output')}
-                          onMouseUp={e => handlePortClickOrUp(e, node.id, pIdx, 'output')}
-                          onClick={e => handlePortClickOrUp(e, node.id, pIdx, 'output')}
-                          onMouseEnter={() => setHoveredPort({ nodeId: node.id, portIndex: pIdx, type: 'output' })}
-                          onMouseLeave={() => setHoveredPort(null)}
-                        />
-                      </g>
-                    );
-                  })}
+                      {/* Input Ports (Left Pins) */}
+                      {node.inputs.map((port, pIdx) => {
+                        const portCoord = getPortCoordinates(node, pIdx, 'input');
+                        const localX = portCoord.x - node.x;
+                        const localY = portCoord.y - node.y;
+                        const pVal = port.value;
+                        const pColor = pVal === 1 ? '#10b981' : pVal === 0 ? '#64748b' : '#eab308';
+                        const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portIndex === pIdx && hoveredPort?.type === 'input';
+                        const isStart = wireStart?.nodeId === node.id && wireStart?.portIndex === pIdx && wireStart?.type === 'input';
+
+                        return (
+                          <g key={port.id} className="group">
+                            {(isHovered || isStart) && (
+                              <circle
+                                cx={localX}
+                                cy={localY}
+                                r="10"
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="2.5"
+                                className="animate-ping opacity-75"
+                              />
+                            )}
+
+                            <circle
+                              cx={localX}
+                              cy={localY}
+                              r={isHovered ? 6 : 4.5}
+                              fill={pColor}
+                              stroke="#0f172a"
+                              strokeWidth="2"
+                              className="transition-all"
+                            />
+
+                            <text
+                              x={localX + 8}
+                              y={localY + 3.5}
+                              fill="#94a3b8"
+                              fontSize="8.5"
+                              fontFamily="monospace"
+                              fontWeight="bold"
+                            >
+                              {port.name || `In${pIdx + 1}`}
+                            </text>
+
+                            <circle
+                              cx={localX}
+                              cy={localY}
+                              r="16"
+                              fill="transparent"
+                              className="cursor-crosshair"
+                              onMouseDown={e => handlePortMouseDown(e, node.id, pIdx, 'input')}
+                              onMouseUp={e => handlePortClickOrUp(e, node.id, pIdx, 'input')}
+                              onClick={e => handlePortClickOrUp(e, node.id, pIdx, 'input')}
+                              onMouseEnter={() => setHoveredPort({ nodeId: node.id, portIndex: pIdx, type: 'input' })}
+                              onMouseLeave={() => setHoveredPort(null)}
+                            />
+                          </g>
+                        );
+                      })}
+
+                      {/* Output Ports (Right Pins) */}
+                      {node.outputs.map((port, pIdx) => {
+                        const portCoord = getPortCoordinates(node, pIdx, 'output');
+                        const localX = portCoord.x - node.x;
+                        const localY = portCoord.y - node.y;
+                        const pVal = port.value;
+                        const pColor = pVal === 1 ? '#10b981' : pVal === 0 ? '#64748b' : '#eab308';
+                        const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portIndex === pIdx && hoveredPort?.type === 'output';
+                        const isStart = wireStart?.nodeId === node.id && wireStart?.portIndex === pIdx && wireStart?.type === 'output';
+
+                        return (
+                          <g key={port.id} className="group">
+                            {(isHovered || isStart) && (
+                              <circle
+                                cx={localX}
+                                cy={localY}
+                                r="10"
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="2.5"
+                                className="animate-ping opacity-75"
+                              />
+                            )}
+
+                            <circle
+                              cx={localX}
+                              cy={localY}
+                              r={isHovered ? 6 : 4.5}
+                              fill={pColor}
+                              stroke="#0f172a"
+                              strokeWidth="2"
+                              className="transition-all"
+                            />
+
+                            <text
+                              x={localX - 8}
+                              y={localY + 3.5}
+                              fill="#94a3b8"
+                              fontSize="8.5"
+                              fontFamily="monospace"
+                              fontWeight="bold"
+                              textAnchor="end"
+                            >
+                              {port.name || 'Out'}
+                            </text>
+
+                            <circle
+                              cx={localX}
+                              cy={localY}
+                              r="16"
+                              fill="transparent"
+                              className="cursor-crosshair"
+                              onMouseDown={e => handlePortMouseDown(e, node.id, pIdx, 'output')}
+                              onMouseUp={e => handlePortClickOrUp(e, node.id, pIdx, 'output')}
+                              onClick={e => handlePortClickOrUp(e, node.id, pIdx, 'output')}
+                              onMouseEnter={() => setHoveredPort({ nodeId: node.id, portIndex: pIdx, type: 'output' })}
+                              onMouseLeave={() => setHoveredPort(null)}
+                            />
+                          </g>
+                        );
+                      })}
+                    </>
+                  )}
                 </g>
               );
             })}
           </svg>
         </div>
 
-        {/* Selected Component Inspector (Right Panel) */}
+        {/* Selected Component / Wire Inspector (Right Panel) */}
         {selectedNode && (
           <div className="w-64 border-l border-slate-800 bg-slate-900/95 p-4 overflow-y-auto space-y-4 shrink-0 z-10 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                Component Properties
+                {selectedNode.type === 'COMMENT' ? 'Comment Box' : 'Component Properties'}
               </h4>
               <button
                 onClick={() => setSelectedNodeId(null)}
@@ -1563,63 +1733,230 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="text-[10px] text-slate-400 uppercase font-semibold">Label</label>
-                <input
-                  type="text"
-                  value={selectedNode.label}
-                  onChange={e => {
-                    const newLabel = e.target.value;
-                    setCircuit(prev => ({
-                      ...prev,
-                      nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
-                    }));
-                  }}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
+            {selectedNode.type === 'COMMENT' ? (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-semibold">Title</label>
+                  <input
+                    type="text"
+                    value={selectedNode.label}
+                    onChange={e => {
+                      const newLabel = e.target.value;
+                      setCircuit(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
+                      }));
+                    }}
+                    className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
 
-              <div className="flex items-center justify-between text-slate-400">
-                <span>Type:</span>
-                <span className="font-bold text-emerald-400">{selectedNode.type}</span>
-              </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-semibold">Comment Content</label>
+                  <textarea
+                    value={selectedNode.commentText || ''}
+                    onChange={e => {
+                      const newText = e.target.value;
+                      setCircuit(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, commentText: newText } : n),
+                      }));
+                    }}
+                    rows={4}
+                    placeholder="Type note or explanation here..."
+                    className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none resize-none leading-relaxed"
+                  />
+                </div>
 
-              <div className="flex items-center justify-between text-slate-400">
-                <span>Coordinates:</span>
-                <span className="font-mono text-slate-300">X: {selectedNode.x}, Y: {selectedNode.y}</span>
-              </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">Box Color</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {NOTE_COLORS.map(nc => (
+                      <button
+                        key={nc.name}
+                        onClick={() => {
+                          pushHistory({
+                            ...circuit,
+                            nodes: circuit.nodes.map(n => n.id === selectedNode.id ? { ...n, color: nc.value } : n),
+                          });
+                          setToastMessage(`Note color: ${nc.name}`);
+                        }}
+                        className={`h-7 rounded flex items-center justify-center border transition-all ${
+                          selectedNode.color === nc.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-slate-700/60'
+                        }`}
+                        style={{ backgroundColor: nc.value }}
+                        title={nc.name}
+                      >
+                        {selectedNode.color === nc.value && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between text-slate-400">
-                <span>Ports:</span>
-                <span className="font-mono text-slate-300">{selectedNode.inputs.length} In / {selectedNode.outputs.length} Out</span>
+                <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
+                  <button
+                    onClick={duplicateSelected}
+                    className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Duplicate Note</span>
+                  </button>
+                  <button
+                    onClick={deleteSelected}
+                    className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Delete Note</span>
+                  </button>
+                </div>
               </div>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-semibold">Label</label>
+                  <input
+                    type="text"
+                    value={selectedNode.label}
+                    onChange={e => {
+                      const newLabel = e.target.value;
+                      setCircuit(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
+                      }));
+                    }}
+                    className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
 
-              {/* Action Buttons for selected node */}
-              <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
-                <button
-                  onClick={duplicateSelected}
-                  className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  <span>Duplicate</span>
-                </button>
-                <button
-                  onClick={deleteSelected}
-                  className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Delete Component</span>
-                </button>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Type:</span>
+                  <span className="font-bold text-emerald-400">{selectedNode.type}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Coordinates:</span>
+                  <span className="font-mono text-slate-300">X: {selectedNode.x}, Y: {selectedNode.y}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Ports:</span>
+                  <span className="font-mono text-slate-300">{selectedNode.inputs.length} In / {selectedNode.outputs.length} Out</span>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
+                  <button
+                    onClick={duplicateSelected}
+                    className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Duplicate</span>
+                  </button>
+                  <button
+                    onClick={deleteSelected}
+                    className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Delete Component</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
+
+        {/* Selected Wire Inspector (When a wire is clicked and no node is selected) */}
+        {selectedWireId && !selectedNode && selectedWire && (() => {
+          const fromNode = circuit.nodes.find(n => n.id === selectedWire.fromNodeId);
+          const toNode = circuit.nodes.find(n => n.id === selectedWire.toNodeId);
+
+          return (
+            <div className="w-64 border-l border-slate-800 bg-slate-900/95 p-4 overflow-y-auto space-y-4 shrink-0 z-10 shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Cable className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Wire Properties</span>
+                </h4>
+                <button
+                  onClick={() => setSelectedWireId(null)}
+                  className="text-xs text-slate-500 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>From:</span>
+                  <span className="font-bold text-slate-200">{fromNode?.label || 'Source'}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>To:</span>
+                  <span className="font-bold text-slate-200">{toNode?.label || 'Target'}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Signal State:</span>
+                  <span className={`font-mono font-bold ${selectedWire.value === 1 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {selectedWire.value === 1 ? '1 (HIGH)' : '0 (LOW)'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">Wire Color</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {WIRE_COLORS.map(wc => (
+                      <button
+                        key={wc.name}
+                        onClick={() => {
+                          pushHistory({
+                            ...circuit,
+                            wires: circuit.wires.map(w => w.id === selectedWire.id ? { ...w, color: wc.value || undefined } : w),
+                          });
+                          setToastMessage(`Wire color: ${wc.name}`);
+                        }}
+                        className={`h-7 rounded flex items-center justify-center border transition-all ${
+                          (selectedWire.color || '') === wc.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-slate-700/60'
+                        }`}
+                        style={{ backgroundColor: wc.value || '#475569' }}
+                        title={wc.name}
+                      >
+                        {(selectedWire.color || '') === wc.value && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[9px] text-slate-500 block mt-1">Color code power, data, bus, clock or feedback wires.</span>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800">
+                  <button
+                    onClick={() => {
+                      pushHistory({
+                        ...circuit,
+                        wires: circuit.wires.filter(w => w.id !== selectedWire.id),
+                      });
+                      setSelectedWireId(null);
+                      setToastMessage('Wire deleted.');
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Delete Wire</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      {/* Mobile Component Add Drawer (Horizontal bottom bar for mobile screens) */}
+      {/* Mobile Component Add Drawer */}
       <div className="md:hidden flex items-center gap-2 p-2 border-t border-slate-800 bg-slate-900 overflow-x-auto">
         <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">Add:</span>
+        <button
+          onClick={() => addComponent('COMMENT')}
+          className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0 border border-amber-500/40"
+        >
+          + Note
+        </button>
         {(['SWITCH', 'AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'LED'] as GateType[]).map(g => (
           <button
             key={g}

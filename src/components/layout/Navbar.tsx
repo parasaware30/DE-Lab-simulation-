@@ -104,14 +104,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Quick Demo button */}
-          <button
-            onClick={() => setActiveModule('builder')}
-            className="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Open Builder</span>
-          </button>
 
           <button
             onClick={handleShare}

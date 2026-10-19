@@ -17,7 +17,8 @@ export type GateType =
   | 'D_FF'
   | 'JK_FF'
   | 'T_FF'
-  | 'SEVEN_SEG';
+  | 'SEVEN_SEG'
+  | 'COMMENT';
 
 export interface Port {
   id: string;
@@ -34,6 +35,10 @@ export interface CircuitNode {
   y: number;
   inputs: Port[];
   outputs: Port[];
+  color?: string; // Custom background/accent color
+  commentText?: string; // Text content for COMMENT boxes
+  width?: number;
+  height?: number;
   state?: {
     q?: LogicValue;
     qBar?: LogicValue;
@@ -50,6 +55,7 @@ export interface Wire {
   toNodeId: string;
   toPortIndex: number;
   value: LogicValue;
+  color?: string; // Custom wire color
 }
 
 export interface Circuit {

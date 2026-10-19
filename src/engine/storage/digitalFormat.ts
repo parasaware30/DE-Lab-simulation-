@@ -17,6 +17,7 @@ const DIGITAL_TO_DELAB_TYPE: Record<string, GateType> = {
   'D_FF': 'D_FF',
   'JK_FF': 'JK_FF',
   'Seven-Seg': 'SEVEN_SEG',
+  'Text': 'COMMENT',
 };
 
 const DELAB_TO_DIGITAL_TYPE: Record<GateType, string> = {
@@ -37,6 +38,7 @@ const DELAB_TO_DIGITAL_TYPE: Record<GateType, string> = {
   'JK_FF': 'JK_FF',
   'T_FF': 'JK_FF',
   'SEVEN_SEG': 'Seven-Seg',
+  'COMMENT': 'Text',
 };
 
 /**
