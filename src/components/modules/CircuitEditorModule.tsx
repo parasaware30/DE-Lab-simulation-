@@ -345,6 +345,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const ignoreNextCanvasClickRef = useRef<boolean>(false);
 
   const pushHistory = useCallback((newCircuit: Circuit) => {
     setHistory(prev => [...prev.slice(-25), circuit]);
@@ -771,6 +772,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
+    if (ignoreNextCanvasClickRef.current) {
+      ignoreNextCanvasClickRef.current = false;
+      return;
+    }
     if (e.target === svgRef.current) {
       if (wireStart) {
         setWireStart(null);
@@ -1240,6 +1245,112 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             </div>
           )}
 
+          {/* Wire Color Plate Floating Popover on Wire Click */}
+          {selectedWireId && !selectedNodeId && !wireStart && (() => {
+            const activeWire = circuit.wires.find(w => w.id === selectedWireId);
+            if (!activeWire) return null;
+
+            const fromNode = circuit.nodes.find(n => n.id === activeWire.fromNodeId);
+            const toNode = circuit.nodes.find(n => n.id === activeWire.toNodeId);
+            if (!fromNode || !toNode) return null;
+
+            const p1 = getPortCoordinates(fromNode, activeWire.fromPortIndex, 'output');
+            const p2 = getPortCoordinates(toNode, activeWire.toPortIndex, 'input');
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const screenX = midX * zoom + pan.x;
+            const screenY = midY * zoom + pan.y;
+
+            return (
+              <div 
+                className="absolute z-40 -translate-x-1/2 -translate-y-full mb-3 pointer-events-auto"
+                style={{
+                  left: `max(160px, min(calc(100% - 160px), ${screenX}px))`,
+                  top: `max(60px, ${screenY - 14}px)`,
+                }}
+                onMouseDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="bg-slate-900/95 border-2 border-amber-500/80 rounded-xl shadow-2xl p-3 backdrop-blur-md flex flex-col gap-2 min-w-[290px] animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                      <Palette className="h-3.5 w-3.5" />
+                      <span>Wire Color Plate</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                        {activeWire.value === 1 ? 'HIGH (1)' : activeWire.value === 0 ? 'LOW (0)' : 'State: ?'}
+                      </span>
+                      <button 
+                        onClick={() => setSelectedWireId(null)}
+                        className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-slate-800 transition-colors"
+                        title="Close Color Plate"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 justify-between py-1">
+                    {WIRE_COLORS.map(wc => {
+                      const isCurrent = (activeWire.color || '') === wc.value;
+                      return (
+                        <button
+                          key={wc.name}
+                          onClick={() => {
+                            pushHistory({
+                              ...circuit,
+                              wires: circuit.wires.map(w => w.id === activeWire.id ? { ...w, color: wc.value || undefined } : w),
+                            });
+                            setToastMessage(`Wire color changed to ${wc.name}`);
+                          }}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-125 shadow-md relative ${
+                            isCurrent ? 'ring-2 ring-white scale-110' : 'hover:ring-1 hover:ring-slate-400 ring-1 ring-slate-700/60'
+                          }`}
+                          style={{
+                            backgroundColor: wc.value || '#475569',
+                          }}
+                          title={wc.name}
+                        >
+                          {isCurrent && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-800 text-[11px]">
+                    <button
+                      onClick={() => {
+                        pushHistory({
+                          ...circuit,
+                          wires: circuit.wires.map(w => w.id === activeWire.id ? { ...w, color: undefined } : w),
+                        });
+                        setToastMessage('Wire color reset to Auto (State Color)');
+                      }}
+                      className="text-slate-400 hover:text-emerald-400 transition-colors font-medium"
+                    >
+                      Reset to Auto
+                    </button>
+                    <button
+                      onClick={() => {
+                        pushHistory({
+                          ...circuit,
+                          wires: circuit.wires.filter(w => w.id !== activeWire.id),
+                        });
+                        setSelectedWireId(null);
+                        setToastMessage('Wire deleted.');
+                      }}
+                      className="text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors font-medium"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span>Delete Wire</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Main SVG Render Surface */}
           <svg
             ref={svgRef}
@@ -1289,23 +1400,23 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   className="group cursor-pointer"
                   onMouseDown={e => {
                     e.stopPropagation();
-                    setSelectedWireId(wire.id);
-                    setSelectedNodeId(null);
                   }}
                   onClick={e => {
                     e.stopPropagation();
+                    ignoreNextCanvasClickRef.current = true;
                     setSelectedWireId(wire.id);
                     setSelectedNodeId(null);
-                    setToastMessage('Wire selected. Choose a color below or in the toolbar.');
+                    setToastMessage('Wire selected. Color plate opened.');
                   }}
                 >
-                  {/* Invisible wide stroke for easy clicking/selection */}
+                  {/* Invisible wide stroke for guaranteed single-click selection */}
                   <path
                     d={pathD}
                     fill="none"
-                    stroke="transparent"
-                    strokeWidth="24"
-                    className="cursor-pointer"
+                    stroke="#ffffff"
+                    strokeOpacity="0.001"
+                    strokeWidth="32"
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
                   />
 
                   {/* Wire Glowing Halo */}
@@ -1315,7 +1426,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       fill="none"
                       stroke={glowColor}
                       strokeWidth={isSelected ? '8' : '6'}
-                      strokeOpacity={isSelected ? 0.45 : 0.25}
+                      strokeOpacity={isSelected ? 0.6 : 0.25}
                       strokeLinecap="round"
                     />
                   )}
@@ -1329,77 +1440,19 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     strokeDasharray={isUndefined ? '4' : undefined}
                     strokeLinecap="round"
                     className={isHigh ? 'wire-high' : undefined}
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
                   />
 
                   {/* Signal Indicator Bead */}
                   <circle
                     cx={midX}
                     cy={midY}
-                    r="4.5"
+                    r={isSelected ? 6 : 4.5}
                     fill={strokeColor}
-                    stroke="#0f172a"
-                    strokeWidth="1.5"
+                    stroke={isSelected ? '#f59e0b' : '#0f172a'}
+                    strokeWidth={isSelected ? 2 : 1.5}
+                    style={{ pointerEvents: 'all', cursor: 'pointer' }}
                   />
-
-                  {/* Selected Wire Canvas Floating Mini Toolbar */}
-                  {isSelected && (
-                    <g transform={`translate(${midX}, ${midY - 26})`} className="cursor-pointer">
-                      <rect
-                        x="-85"
-                        y="-15"
-                        width="170"
-                        height="30"
-                        rx="15"
-                        fill="#0f172a"
-                        stroke="#f59e0b"
-                        strokeWidth="1.5"
-                        filter="drop-shadow(0 4px 10px rgba(0,0,0,0.7))"
-                      />
-                      {WIRE_COLORS.map((wc, cIdx) => (
-                        <circle
-                          key={wc.name}
-                          cx={-68 + cIdx * 17}
-                          cy="0"
-                          r="6"
-                          fill={wc.value || '#64748b'}
-                          stroke={(wire.color || '') === wc.value ? '#ffffff' : '#1e293b'}
-                          strokeWidth={(wire.color || '') === wc.value ? '2' : '1'}
-                          className="hover:scale-125 transition-transform"
-                          onClick={e => {
-                            e.stopPropagation();
-                            pushHistory({
-                              ...circuit,
-                              wires: circuit.wires.map(w => w.id === wire.id ? { ...w, color: wc.value || undefined } : w),
-                            });
-                            setToastMessage(`Wire color changed to ${wc.name}.`);
-                          }}
-                        />
-                      ))}
-                      <g
-                        transform="translate(68, 0)"
-                        onClick={e => {
-                          e.stopPropagation();
-                          pushHistory({
-                            ...circuit,
-                            wires: circuit.wires.filter(w => w.id !== wire.id),
-                          });
-                          setSelectedWireId(null);
-                          setToastMessage('Wire deleted.');
-                        }}
-                      >
-                        <circle r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
-                        <text
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          fill="#ffffff"
-                          fontSize="9"
-                          fontWeight="bold"
-                        >
-                          ✕
-                        </text>
-                      </g>
-                    </g>
-                  )}
                 </g>
               );
             })}
@@ -1516,28 +1569,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       >
                         📌 {node.label || 'Note'}
                       </text>
-
-                      {/* Header Quick Color Swatches */}
-                      {NOTE_COLORS.slice(0, 4).map((nc, cIdx) => (
-                        <circle
-                          key={nc.name}
-                          cx={width - 50 + cIdx * 12}
-                          cy="13"
-                          r="4.5"
-                          fill={nc.value}
-                          stroke={node.color === nc.value ? '#ffffff' : '#0f172a'}
-                          strokeWidth="1.2"
-                          className="cursor-pointer hover:scale-125 transition-transform"
-                          onClick={e => {
-                            e.stopPropagation();
-                            pushHistory({
-                              ...circuit,
-                              nodes: circuit.nodes.map(n => n.id === node.id ? { ...n, color: nc.value } : n),
-                            });
-                            setToastMessage(`Note color: ${nc.name}`);
-                          }}
-                        />
-                      ))}
 
                       {/* Editable Textarea inside foreignObject */}
                       <foreignObject x="8" y="30" width={width - 16} height={height - 40}>
