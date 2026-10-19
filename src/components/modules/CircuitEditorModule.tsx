@@ -9,7 +9,7 @@ import {
 import { simulateCircuit, validateCircuit } from '../../engine/simulator';
 import { generateCircuitTruthTable, truthTableToCSV } from '../../engine/truthTableGenerator';
 import { SAMPLE_CIRCUITS } from '../../engine/sampleCircuits';
-import { saveProject } from '../../engine/storage/projectStore';
+import { saveProject, exportProjectAsDigitalXML } from '../../engine/storage/projectStore';
 import { 
   Play, 
   Pause, 
@@ -601,6 +601,15 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
           >
             <Download className="h-4 w-4" />
+          </button>
+
+          <button
+            onClick={() => exportProjectAsDigitalXML(circuit)}
+            title="Export as HNeemann Digital XML (.dig)"
+            className="flex items-center gap-1 rounded-lg bg-slate-800 hover:bg-slate-700 px-2 py-1.5 text-xs font-mono font-bold text-cyan-400 border border-slate-700 transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>.dig</span>
           </button>
 
           <button

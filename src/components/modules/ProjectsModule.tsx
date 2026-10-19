@@ -9,10 +9,10 @@ import {
   duplicateProject, 
   restoreDefaultSamples,
   exportProjectAsJSON,
-  importProjectFromJSON
+  exportProjectAsDigitalXML,
+  importProjectFromFile
 } from '../../engine/storage/projectStore';
 import { 
-  FolderArchive, 
   Plus, 
   Trash2, 
   Copy, 
@@ -20,9 +20,9 @@ import {
   Upload, 
   RotateCcw, 
   Play, 
-  Sparkles,
   Calendar,
-  Layers
+  FileCode2,
+  ExternalLink
 } from 'lucide-react';
 
 interface ProjectsModuleProps {
@@ -100,10 +100,10 @@ export const ProjectsModule: React.FC<ProjectsModuleProps> = ({
     const reader = new FileReader();
     reader.onload = evt => {
       const content = evt.target?.result as string;
-      const res = importProjectFromJSON(content);
+      const res = importProjectFromFile(file.name, content);
       if (res.success && res.circuit) {
         refreshList();
-        setFeedbackMsg(`Successfully imported project "${res.circuit.name}"!`);
+        setFeedbackMsg(`Successfully imported "${res.circuit.name}" from ${file.name}!`);
       } else {
         alert(`Import failed: ${res.error}`);
       }
@@ -117,16 +117,16 @@ export const ProjectsModule: React.FC<ProjectsModuleProps> = ({
       {/* Header */}
       <div className="border-b border-slate-800 pb-4">
         <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-          Project Vault & Local Persistence
+          Project Vault & Interoperability Center
         </h1>
         <p className="text-xs sm:text-sm text-slate-400">
-          Save, manage, duplicate, export, and import your digital circuit projects offline in browser LocalStorage
+          Save circuits locally, with full bidirectional compatibility with <strong>HNeemann Digital (.dig)</strong> and JSON formats
         </p>
       </div>
 
       {/* Action Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl border border-slate-800 bg-slate-900/80">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleCreateNew}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow transition-colors"
@@ -140,13 +140,13 @@ export const ProjectsModule: React.FC<ProjectsModuleProps> = ({
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold border border-slate-700 transition-colors"
           >
             <Upload className="h-4 w-4 text-cyan-400" />
-            <span>Import JSON</span>
+            <span>Import (.json / .dig)</span>
           </button>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleImportFile}
-            accept=".json"
+            accept=".json,.dig"
             className="hidden"
           />
         </div>
@@ -158,6 +158,19 @@ export const ProjectsModule: React.FC<ProjectsModuleProps> = ({
           <RotateCcw className="h-3.5 w-3.5" />
           <span>Restore Sample Presets</span>
         </button>
+      </div>
+
+      {/* HNeemann Digital Reference Banner */}
+      <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-cyan-200">
+        <div className="flex items-center gap-2.5">
+          <FileCode2 className="h-5 w-5 text-cyan-400 shrink-0" />
+          <div>
+            <strong className="text-white">Referenced from HNeemann Digital</strong>
+            <p className="text-[11px] text-cyan-300/80 mt-0.5">
+              Supports loading and exporting circuit schematics compatible with the open-source <a href="https://github.com/hneemann/Digital" target="_blank" rel="noreferrer" className="underline font-bold text-white hover:text-cyan-300 inline-flex items-center gap-0.5">HNeemann Digital Simulator <ExternalLink className="h-3 w-3" /></a> (.dig format).
+            </p>
+          </div>
+        </div>
       </div>
 
       {feedbackMsg && (
@@ -234,11 +247,21 @@ export const ProjectsModule: React.FC<ProjectsModuleProps> = ({
 
               <div className="flex items-center justify-between gap-1">
                 <button
-                  onClick={() => exportProjectAsJSON(proj)}
-                  title="Export as JSON file"
-                  className="p-2 rounded text-slate-400 hover:text-white hover:bg-slate-800 text-xs"
+                  onClick={() => exportProjectAsDigitalXML(proj)}
+                  title="Export as HNeemann Digital XML (.dig)"
+                  className="flex items-center gap-1 px-2 py-1.5 rounded text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 text-[11px] font-mono font-bold"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
+                  <span>.dig</span>
+                </button>
+
+                <button
+                  onClick={() => exportProjectAsJSON(proj)}
+                  title="Export as JSON"
+                  className="flex items-center gap-1 px-2 py-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800 text-[11px] font-mono font-bold"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>.json</span>
                 </button>
 
                 <button

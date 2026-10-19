@@ -1,5 +1,6 @@
 import { Circuit } from '../types';
 import { SAMPLE_CIRCUITS } from '../sampleCircuits';
+import { exportToDigitalXML, importFromDigitalXML } from './digitalFormat';
 
 const STORAGE_KEY = 'delab_pro_projects_v1';
 const ACTIVE_PROJECT_KEY = 'delab_pro_active_project_id';
@@ -17,7 +18,6 @@ export function getAllSavedProjects(): Circuit[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      // Seed with sample circuits on first launch
       saveProjectsToDisk(SAMPLE_CIRCUITS);
       return SAMPLE_CIRCUITS;
     }
@@ -106,9 +106,30 @@ export function exportProjectAsJSON(circuit: Circuit): void {
   URL.revokeObjectURL(url);
 }
 
-export function importProjectFromJSON(jsonText: string): { success: boolean; circuit?: Circuit; error?: string } {
+export function exportProjectAsDigitalXML(circuit: Circuit): void {
+  const xmlStr = exportToDigitalXML(circuit);
+  const blob = new Blob([xmlStr], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${circuit.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}.dig`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export function importProjectFromFile(filename: string, text: string): { success: boolean; circuit?: Circuit; error?: string } {
+  if (filename.endsWith('.dig')) {
+    const res = importFromDigitalXML(text);
+    if (res.success && res.circuit) {
+      saveProject(res.circuit);
+    }
+    return res;
+  }
+
   try {
-    const data = JSON.parse(jsonText);
+    const data = JSON.parse(text);
     if (!data.id || !Array.isArray(data.nodes) || !Array.isArray(data.wires)) {
       return { success: false, error: 'Incompatible file schema. Must include nodes and wires arrays.' };
     }
@@ -121,6 +142,6 @@ export function importProjectFromJSON(jsonText: string): { success: boolean; cir
     saveProject(importedCircuit);
     return { success: true, circuit: importedCircuit };
   } catch (err: unknown) {
-    return { success: false, error: err instanceof Error ? err.message : 'Invalid JSON format' };
+    return { success: false, error: err instanceof Error ? err.message : 'Invalid JSON or XML format' };
   }
 }
