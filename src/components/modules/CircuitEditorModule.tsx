@@ -30,6 +30,7 @@ import {
   Cable,
   FileText,
   Check,
+  Palette,
   X
 } from 'lucide-react';
 
@@ -65,7 +66,7 @@ export const WIRE_COLORS = [
  */
 export const getNodeDimensions = (node: CircuitNode) => {
   if (node.type === 'COMMENT') {
-    return { width: node.width || 190, height: node.height || 120 };
+    return { width: node.width || 200, height: node.height || 130 };
   }
   if (node.type.endsWith('_FF')) {
     return { width: 120, height: 96 };
@@ -133,17 +134,14 @@ const GateSymbol: React.FC<{
 
   return (
     <g>
-      {/* Internal Lead Lines connecting ports to gate symbol */}
       {inputCount >= 1 && (
         <line x1="0" y1={inY0} x2={gx} y2={inY0} stroke="#64748b" strokeWidth="2" />
       )}
       {inputCount >= 2 && (
         <line x1="0" y1={inY1} x2={gx} y2={inY1} stroke="#64748b" strokeWidth="2" />
       )}
-      {/* Output Lead Line from gate symbol tip to right port */}
       <line x1={gx + gw - 4} y1={midY} x2={width} y2={midY} stroke="#64748b" strokeWidth="2" />
 
-      {/* Main ANSI/IEEE Symbol Body */}
       <g transform={`translate(${gx}, ${gy})`}>
         {type === 'AND' && (
           <path
@@ -248,9 +246,6 @@ const GateSymbol: React.FC<{
   );
 };
 
-/**
- * Mini vector icon for toolbox buttons
- */
 const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
   switch (type) {
     case 'AND':
@@ -333,6 +328,11 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   // Node Dragging
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Comment Box Resizing State
+  const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
+  const [startResizeMouse, setStartResizeMouse] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [startResizeDim, setStartResizeDim] = useState<{ width: number; height: number }>({ width: 200, height: 130 });
 
   // Truth Table Modal State
   const [showTruthTableModal, setShowTruthTableModal] = useState<boolean>(false);
@@ -431,6 +431,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         setWireStart(null);
         setSelectedWireId(null);
         setSelectedNodeId(null);
+        setResizingNodeId(null);
         setToastMessage('Selection cleared.');
       }
     };
@@ -483,9 +484,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       case 'COMMENT':
         label = 'Note';
         color = '#eab308';
-        commentText = 'Double-click or type notes, equations or pin descriptions here...';
-        width = 190;
-        height = 120;
+        commentText = 'Type notes or explanations here... Drag bottom-right corner to resize.';
+        width = 220;
+        height = 140;
         break;
       case 'SWITCH':
         label = `SW_${circuit.nodes.filter(n => n.type === 'SWITCH').length + 1}`;
@@ -620,6 +621,16 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     setToastMessage(`Duplicated ${target.label}.`);
   };
 
+  // Start Resizing Comment Box
+  const handleResizeMouseDown = (e: React.MouseEvent, nodeId: string, currentWidth: number, currentHeight: number) => {
+    e.stopPropagation();
+    setSelectedNodeId(nodeId);
+    setSelectedWireId(null);
+    setResizingNodeId(nodeId);
+    setStartResizeMouse({ x: e.clientX, y: e.clientY });
+    setStartResizeDim({ width: currentWidth, height: currentHeight });
+  };
+
   // Bidirectional Port MouseDown: initiates wire connection without dragging parent node
   const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, portIndex: number, type: 'input' | 'output') => {
     e.stopPropagation();
@@ -694,7 +705,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     setToastMessage(`Wire connected: ${fromNode?.label || 'Out'} → ${toNode?.label || 'In'}`);
   };
 
-  // Canvas Mouse events for Dragging & Panning
+  // Canvas Mouse events for Dragging, Resizing & Panning
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || e.altKey || (editorMode === 'SELECT' && e.target === svgRef.current)) {
       setIsPanning(true);
@@ -705,6 +716,20 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     const coords = getCanvasCoords(e.clientX, e.clientY);
     setMousePos(coords);
+
+    // Handle Comment Box Resizing
+    if (resizingNodeId) {
+      const dx = (e.clientX - startResizeMouse.x) / zoom;
+      const dy = (e.clientY - startResizeMouse.y) / zoom;
+      const newWidth = Math.max(140, Math.min(800, Math.round((startResizeDim.width + dx) / 5) * 5));
+      const newHeight = Math.max(80, Math.min(600, Math.round((startResizeDim.height + dy) / 5) * 5));
+
+      setCircuit(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n => n.id === resizingNodeId ? { ...n, width: newWidth, height: newHeight } : n),
+      }));
+      return;
+    }
 
     if (isPanning) {
       setPan({
@@ -733,6 +758,12 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    if (resizingNodeId) {
+      setResizingNodeId(null);
+      pushHistory(circuit);
+      setToastMessage('Note resized.');
+      return;
+    }
     if (draggingNodeId) {
       setDraggingNodeId(null);
       pushHistory(circuit);
@@ -869,6 +900,47 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           </button>
         </div>
 
+        {/* Selected Wire Color Palette Quick Bar (Shown in Toolbar when a wire is selected) */}
+        {selectedWireId && selectedWire && (
+          <div className="flex items-center gap-2 rounded-lg bg-slate-800/90 px-3 py-1 border border-amber-500/40 shadow-sm animate-in fade-in">
+            <Cable className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-200">Wire Color:</span>
+            <div className="flex items-center gap-1.5">
+              {WIRE_COLORS.map(wc => (
+                <button
+                  key={wc.name}
+                  onClick={() => {
+                    pushHistory({
+                      ...circuit,
+                      wires: circuit.wires.map(w => w.id === selectedWire.id ? { ...w, color: wc.value || undefined } : w),
+                    });
+                    setToastMessage(`Wire color: ${wc.name}`);
+                  }}
+                  className={`w-4 h-4 rounded-full border transition-all hover:scale-125 ${
+                    (selectedWire.color || '') === wc.value ? 'ring-2 ring-white scale-110 shadow-md' : 'border-slate-900'
+                  }`}
+                  style={{ backgroundColor: wc.value || '#64748b' }}
+                  title={wc.name}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                pushHistory({
+                  ...circuit,
+                  wires: circuit.wires.filter(w => w.id !== selectedWire.id),
+                });
+                setSelectedWireId(null);
+                setToastMessage('Wire deleted.');
+              }}
+              title="Delete Wire"
+              className="ml-2 text-rose-400 hover:text-rose-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Center: Tools (Select, Wire, Undo, Redo, Zoom) */}
         <div className="flex items-center gap-1">
           <button
@@ -998,7 +1070,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
               <span>Documentation & Notes</span>
-              <span className="text-[9px] text-amber-500 font-bold">New</span>
+              <span className="text-[9px] text-amber-500 font-bold">Resizable</span>
             </h4>
             <div className="grid grid-cols-1 gap-1.5">
               <button
@@ -1010,7 +1082,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 </div>
                 <div className="text-left">
                   <div className="text-white font-bold leading-tight">Comment Box</div>
-                  <div className="text-[9px] text-slate-400 leading-tight">Notes & Color Tag</div>
+                  <div className="text-[9px] text-slate-400 leading-tight">Drag to move & resize</div>
                 </div>
               </button>
             </div>
@@ -1193,7 +1265,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               const isHigh = wire.value === 1;
               const isUndefined = wire.value === 'X' || wire.value === 'Z';
 
-              // Custom Color Logic for Wires
+              // User-selected custom wire color vs default state color
               let strokeColor: string;
               let glowColor: string;
 
@@ -1201,10 +1273,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 strokeColor = '#f59e0b';
                 glowColor = '#f59e0b';
               } else if (wire.color) {
-                strokeColor = isHigh ? wire.color : `${wire.color}88`;
+                strokeColor = wire.color;
                 glowColor = wire.color;
               } else {
-                strokeColor = isHigh ? '#10b981' : isUndefined ? '#eab308' : '#475569';
+                strokeColor = isHigh ? '#10b981' : isUndefined ? '#eab308' : '#64748b';
                 glowColor = isHigh ? '#10b981' : '#eab308';
               }
 
@@ -1212,20 +1284,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               const midY = (p1.y + p2.y) / 2;
 
               return (
-                <g key={wire.id} className="group">
+                <g 
+                  key={wire.id} 
+                  className="group cursor-pointer"
+                  onMouseDown={e => {
+                    e.stopPropagation();
+                    setSelectedWireId(wire.id);
+                    setSelectedNodeId(null);
+                  }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setSelectedWireId(wire.id);
+                    setSelectedNodeId(null);
+                    setToastMessage('Wire selected. Choose a color below or in the toolbar.');
+                  }}
+                >
                   {/* Invisible wide stroke for easy clicking/selection */}
                   <path
                     d={pathD}
                     fill="none"
                     stroke="transparent"
-                    strokeWidth="22"
+                    strokeWidth="24"
                     className="cursor-pointer"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setSelectedWireId(wire.id);
-                      setSelectedNodeId(null);
-                      setToastMessage('Wire selected. Choose a color or delete.');
-                    }}
                   />
 
                   {/* Wire Glowing Halo */}
@@ -1261,29 +1341,30 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     strokeWidth="1.5"
                   />
 
-                  {/* Selected Wire Canvas Floating Mini Toolbar (Colors + Delete) */}
+                  {/* Selected Wire Canvas Floating Mini Toolbar */}
                   {isSelected && (
                     <g transform={`translate(${midX}, ${midY - 26})`} className="cursor-pointer">
                       <rect
-                        x="-75"
-                        y="-14"
-                        width="150"
-                        height="28"
-                        rx="14"
+                        x="-85"
+                        y="-15"
+                        width="170"
+                        height="30"
+                        rx="15"
                         fill="#0f172a"
                         stroke="#f59e0b"
                         strokeWidth="1.5"
-                        filter="drop-shadow(0 4px 8px rgba(0,0,0,0.6))"
+                        filter="drop-shadow(0 4px 10px rgba(0,0,0,0.7))"
                       />
-                      {WIRE_COLORS.slice(0, 6).map((wc, cIdx) => (
+                      {WIRE_COLORS.map((wc, cIdx) => (
                         <circle
                           key={wc.name}
-                          cx={-55 + cIdx * 18}
+                          cx={-68 + cIdx * 17}
                           cy="0"
-                          r="6.5"
+                          r="6"
                           fill={wc.value || '#64748b'}
-                          stroke={wire.color === wc.value ? '#ffffff' : '#1e293b'}
-                          strokeWidth={wire.color === wc.value ? '2' : '1'}
+                          stroke={(wire.color || '') === wc.value ? '#ffffff' : '#1e293b'}
+                          strokeWidth={(wire.color || '') === wc.value ? '2' : '1'}
+                          className="hover:scale-125 transition-transform"
                           onClick={e => {
                             e.stopPropagation();
                             pushHistory({
@@ -1295,7 +1376,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                         />
                       ))}
                       <g
-                        transform="translate(56, 0)"
+                        transform="translate(68, 0)"
                         onClick={e => {
                           e.stopPropagation();
                           pushHistory({
@@ -1306,7 +1387,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                           setToastMessage('Wire deleted.');
                         }}
                       >
-                        <circle r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+                        <circle r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
                         <text
                           textAnchor="middle"
                           dominantBaseline="central"
@@ -1352,7 +1433,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
               return (
                 <g className="pointer-events-none">
-                  {/* Outer Glow Halo */}
                   <path
                     d={rubberPath}
                     fill="none"
@@ -1361,7 +1441,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     strokeOpacity="0.3"
                     strokeLinecap="round"
                   />
-                  {/* Animated Dashed Wire */}
                   <path
                     d={rubberPath}
                     fill="none"
@@ -1371,7 +1450,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     strokeLinecap="round"
                     className="animate-pulse"
                   />
-                  {/* Cursor Bead */}
                   <circle
                     cx={targetX}
                     cy={targetY}
@@ -1462,7 +1540,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       ))}
 
                       {/* Editable Textarea inside foreignObject */}
-                      <foreignObject x="8" y="30" width={width - 16} height={height - 36}>
+                      <foreignObject x="8" y="30" width={width - 16} height={height - 40}>
                         <textarea
                           value={node.commentText || ''}
                           onChange={e => {
@@ -1478,6 +1556,27 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                           style={{ color: '#f8fafc' }}
                         />
                       </foreignObject>
+
+                      {/* Interactive Bottom-Right Corner Resize Grip Handle */}
+                      <g
+                        transform={`translate(${width - 16}, ${height - 16})`}
+                        className="cursor-se-resize"
+                        onMouseDown={e => handleResizeMouseDown(e, node.id, width, height)}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {/* Invisible large touch hit area */}
+                        <rect
+                          x="-8"
+                          y="-8"
+                          width="24"
+                          height="24"
+                          fill="transparent"
+                          className="cursor-se-resize"
+                        />
+                        {/* Diagonal grip stripes */}
+                        <line x1="12" y1="2" x2="2" y2="12" stroke={node.color || '#eab308'} strokeWidth="2" strokeLinecap="round" className="opacity-70 group-hover:opacity-100" />
+                        <line x1="12" y1="7" x2="7" y2="12" stroke={node.color || '#eab308'} strokeWidth="2" strokeLinecap="round" className="opacity-70 group-hover:opacity-100" />
+                      </g>
                     </g>
                   ) : (
                     <>
@@ -1793,6 +1892,38 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   </div>
                 </div>
 
+                {/* Box Size Control Quick Presets */}
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">
+                    Dimensions (or drag bottom-right corner)
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { label: 'Compact', w: 160, h: 100 },
+                      { label: 'Medium', w: 220, h: 140 },
+                      { label: 'Large', w: 320, h: 200 }
+                    ].map(sz => (
+                      <button
+                        key={sz.label}
+                        onClick={() => {
+                          setCircuit(prev => ({
+                            ...prev,
+                            nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, width: sz.w, height: sz.h } : n),
+                          }));
+                          setToastMessage(`Note size: ${sz.label}`);
+                        }}
+                        className="py-1 rounded bg-slate-800 hover:bg-slate-750 text-[10px] font-bold text-slate-300 border border-slate-700"
+                      >
+                        {sz.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                    <span>Width: {selectedNode.width || 200}px</span>
+                    <span>Height: {selectedNode.height || 130}px</span>
+                  </div>
+                </div>
+
                 <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
                   <button
                     onClick={duplicateSelected}
@@ -1864,7 +1995,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           </div>
         )}
 
-        {/* Selected Wire Inspector (When a wire is clicked and no node is selected) */}
+        {/* Selected Wire Inspector (When a wire is selected and no node is selected) */}
         {selectedWireId && !selectedNode && selectedWire && (() => {
           const fromNode = circuit.nodes.find(n => n.id === selectedWire.fromNodeId);
           const toNode = circuit.nodes.find(n => n.id === selectedWire.toNodeId);
@@ -1923,7 +2054,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       </button>
                     ))}
                   </div>
-                  <span className="text-[9px] text-slate-500 block mt-1">Color code power, data, bus, clock or feedback wires.</span>
+                  <span className="text-[9px] text-slate-500 block mt-1">Select custom color to tag Power (Red), Data (Blue), Clock (Amber), etc.</span>
                 </div>
 
                 <div className="pt-3 border-t border-slate-800">
