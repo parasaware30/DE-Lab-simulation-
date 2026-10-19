@@ -59,22 +59,30 @@ export const GateSimulatorModule: React.FC = () => {
 
     return (
       <svg className="w-full max-w-[340px] h-48 mx-auto" viewBox="0 0 340 160">
-        <defs>
-          <filter id="glow-high" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
-
         {/* Inputs wires */}
         {inputs.map((val, idx) => {
           const y = inputs.length === 1 
             ? 80 
             : 80 + (idx - (inputs.length - 1) / 2) * (100 / Math.max(inputs.length - 1, 1));
-          const wireColor = val === 1 ? '#10b981' : '#475569';
+          const isWireHigh = val === 1;
+          const wireColor = isWireHigh ? '#10b981' : '#475569';
 
           return (
-            <g key={idx}>
+            <g key={idx} onClick={() => toggleInput(idx)} className="cursor-pointer group">
+              {/* Soft neon glow halo when HIGH */}
+              {isWireHigh && (
+                <line 
+                  x1="20" 
+                  y1={y} 
+                  x2="110" 
+                  y2={y} 
+                  stroke="#10b981" 
+                  strokeWidth="10" 
+                  strokeOpacity="0.3"
+                  strokeLinecap="round"
+                />
+              )}
+              {/* Solid wire line (never disappears) */}
               <line 
                 x1="20" 
                 y1={y} 
@@ -82,17 +90,50 @@ export const GateSimulatorModule: React.FC = () => {
                 y2={y} 
                 stroke={wireColor} 
                 strokeWidth="4" 
-                filter={val === 1 ? 'url(#glow-high)' : undefined}
+                strokeLinecap="round"
               />
-              <circle cx="20" cy={y} r="6" fill={wireColor} />
-              <text x="35" y={y - 8} fill="#94a3b8" fontSize="12" fontWeight="bold">
+              {/* Outer halo ring on terminal pin when HIGH */}
+              {isWireHigh && (
+                <circle cx="20" cy={y} r="10" fill="#10b981" fillOpacity="0.25" className="animate-ping" />
+              )}
+              {/* Terminal pin */}
+              <circle 
+                cx="20" 
+                cy={y} 
+                r="6" 
+                fill={wireColor} 
+                stroke={isWireHigh ? '#ffffff' : '#0f172a'} 
+                strokeWidth="1.5" 
+              />
+              {/* Text label */}
+              <text 
+                x="35" 
+                y={y - 8} 
+                fill={isWireHigh ? '#34d399' : '#94a3b8'} 
+                fontSize="12" 
+                fontWeight="bold"
+                className="select-none transition-colors"
+              >
                 {String.fromCharCode(65 + idx)} = {val}
               </text>
             </g>
           );
         })}
 
-        {/* Output wire */}
+        {/* Output wire glow when HIGH */}
+        {isHigh && (
+          <line 
+            x1="230" 
+            y1="80" 
+            x2="310" 
+            y2="80" 
+            stroke="#10b981" 
+            strokeWidth="10" 
+            strokeOpacity="0.3"
+            strokeLinecap="round"
+          />
+        )}
+        {/* Solid output wire */}
         <line 
           x1="230" 
           y1="80" 
@@ -100,10 +141,21 @@ export const GateSimulatorModule: React.FC = () => {
           y2="80" 
           stroke={outColor} 
           strokeWidth="4" 
-          filter={isHigh ? 'url(#glow-high)' : undefined}
+          strokeLinecap="round"
         />
-        <circle cx="310" cy="80" r="7" fill={outColor} />
-        <text x="270" y="70" fill={outColor} fontSize="14" fontWeight="bold">
+        {/* Output pin and glow */}
+        {isHigh && (
+          <circle cx="310" cy="80" r="11" fill="#10b981" fillOpacity="0.25" className="animate-ping" />
+        )}
+        <circle cx="310" cy="80" r="7" fill={outColor} stroke={isHigh ? '#ffffff' : '#0f172a'} strokeWidth="2" />
+        <text 
+          x="270" 
+          y="70" 
+          fill={isHigh ? '#34d399' : outColor} 
+          fontSize="14" 
+          fontWeight="bold"
+          className="select-none transition-colors"
+        >
           Y = {outputValue}
         </text>
 
