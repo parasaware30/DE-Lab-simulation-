@@ -61,6 +61,17 @@ export type GateType =
   | 'HEX_DISPLAY'
   | 'BAR_GRAPH'
   | 'BUZZER'
+  // Discrete & Passive Electronic Components
+  | 'RESISTOR'
+  | 'CAPACITOR'
+  | 'INDUCTOR'
+  | 'DIODE'
+  | 'ZENER_DIODE'
+  | 'TRANSISTOR_NPN'
+  | 'MOSFET_N'
+  | 'POTENTIOMETER'
+  | 'RELAY'
+  | 'FUSE'
   // Documentation
   | 'COMMENT';
 
@@ -92,6 +103,9 @@ export interface CircuitNode {
     counterValue?: number; // for COUNTER_4BIT / DECADE_COUNTER (0-15)
     regValues?: LogicValue[]; // for SHIFT_REG_4BIT / REGISTER_4BIT
     latchValue?: LogicValue; // for D_LATCH
+    relayState?: boolean; // for RELAY
+    fuseBlown?: boolean; // for FUSE
+    potValue?: number; // for POTENTIOMETER (0 to 100)
   };
 }
 

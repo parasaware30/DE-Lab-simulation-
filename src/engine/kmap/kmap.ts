@@ -3,7 +3,7 @@ export type KMapCell = 0 | 1 | 'X';
 export interface KMapGroup {
   id: string;
   color: string;
-  cells: number[]; // minterm indices
+  cells: number[]; // minterm/maxterm indices
   expression: string;
   isEssential: boolean;
   rowIndices: number[];
@@ -18,20 +18,24 @@ export interface KMapResult {
   colLabels: string[];
   cellMinterms: number[][]; // mapping [r][c] -> minterm number
   groups: KMapGroup[];
+  posGroups: KMapGroup[];
   sop: string;
   pos: string;
+  canonicalSOP: string;
+  canonicalPOS: string;
   minterms: number[];
+  maxterms: number[];
   dontCares: number[];
 }
 
 const GROUP_COLORS = [
-  'rgba(59, 130, 246, 0.4)', // blue
-  'rgba(16, 185, 129, 0.4)', // green
-  'rgba(245, 158, 11, 0.4)', // amber
-  'rgba(236, 72, 153, 0.4)', // pink
-  'rgba(139, 92, 246, 0.4)', // purple
-  'rgba(20, 184, 166, 0.4)', // teal
-  'rgba(239, 68, 68, 0.4)',  // red
+  'rgba(59, 130, 246, 0.45)', // blue
+  'rgba(16, 185, 129, 0.45)', // green
+  'rgba(245, 158, 11, 0.45)', // amber
+  'rgba(236, 72, 153, 0.45)', // pink
+  'rgba(139, 92, 246, 0.45)', // purple
+  'rgba(20, 184, 166, 0.45)', // teal
+  'rgba(239, 68, 68, 0.45)',  // red
 ];
 
 export function createEmptyKMap(varCount: 2 | 3 | 4): KMapResult {
@@ -59,9 +63,13 @@ export function createEmptyKMap(varCount: 2 | 3 | 4): KMapResult {
     colLabels,
     cellMinterms,
     groups: [],
+    posGroups: [],
     sop: '0',
     pos: '1',
+    canonicalSOP: 'Σm(∅)',
+    canonicalPOS: 'ΠM(∅)',
     minterms: [],
+    maxterms: [],
     dontCares: [],
   };
 }
@@ -69,19 +77,16 @@ export function createEmptyKMap(varCount: 2 | 3 | 4): KMapResult {
 export function coordsToMinterm(varCount: 2 | 3 | 4, r: number, c: number): number {
   const gray2 = [0, 1, 3, 2]; // 00, 01, 11, 10
   if (varCount === 2) {
-    // r is A, c is B
     return (r << 1) | c;
   } else if (varCount === 3) {
-    // r is A (0 or 1), c is BC (Gray code: 00=0, 01=1, 11=3, 10=2)
     return (r << 2) | gray2[c];
   } else {
-    // 4 vars: r is AB (Gray code), c is CD (Gray code)
     return (gray2[r] << 2) | gray2[c];
   }
 }
 
 export function mintermToCoords(varCount: 2 | 3 | 4, m: number): { r: number; c: number } {
-  const grayRev = [0, 1, 3, 2]; // index 0->0, 1->1, 2->3, 3->2
+  const grayRev = [0, 1, 3, 2];
   if (varCount === 2) {
     return { r: (m >> 1) & 1, c: m & 1 };
   } else if (varCount === 3) {
@@ -102,6 +107,7 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
   const rows = grid.length;
   const cols = grid[0].length;
   const minterms: number[] = [];
+  const maxterms: number[] = [];
   const dontCares: number[] = [];
 
   for (let r = 0; r < rows; r++) {
@@ -109,26 +115,47 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
       const val = grid[r][c];
       const m = kmap.cellMinterms[r][c];
       if (val === 1) minterms.push(m);
+      else if (val === 0) maxterms.push(m);
       else if (val === 'X') dontCares.push(m);
     }
   }
 
+  minterms.sort((a, b) => a - b);
+  maxterms.sort((a, b) => a - b);
+  dontCares.sort((a, b) => a - b);
+
   kmap.minterms = minterms;
+  kmap.maxterms = maxterms;
   kmap.dontCares = dontCares;
 
   const totalCells = 1 << varCount;
+
+  // Canonical representations
+  kmap.canonicalSOP = minterms.length > 0
+    ? `Σm(${minterms.join(', ')})` + (dontCares.length ? ` + d(${dontCares.join(', ')})` : '')
+    : '0';
+
+  kmap.canonicalPOS = maxterms.length > 0
+    ? `ΠM(${maxterms.join(', ')})` + (dontCares.length ? ` · d(${dontCares.join(', ')})` : '')
+    : '1';
+
+  // Available group sizes in Gray code
+  const groupSizes = varCount === 4
+    ? [[4, 4], [4, 2], [2, 4], [4, 1], [1, 4], [2, 2], [2, 1], [1, 2], [1, 1]]
+    : varCount === 3
+    ? [[2, 4], [2, 2], [1, 4], [2, 1], [1, 2], [1, 1]]
+    : [[2, 2], [2, 1], [1, 2], [1, 1]];
+
+  // -------------------------------------------------------------
+  // 1. Solve Minimal SOP (Grouping 1s and Xs)
+  // -------------------------------------------------------------
   if (minterms.length === 0) {
     kmap.sop = '0';
-    kmap.pos = '0';
     kmap.groups = [];
-    return kmap;
-  }
-
-  if (minterms.length + dontCares.length === totalCells) {
+  } else if (minterms.length + dontCares.length === totalCells) {
     kmap.sop = '1';
-    kmap.pos = '1';
     kmap.groups = [{
-      id: 'grp_all',
+      id: 'grp_sop_all',
       color: GROUP_COLORS[0],
       cells: Array.from({ length: totalCells }, (_, i) => i),
       expression: '1',
@@ -136,126 +163,232 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
       rowIndices: Array.from({ length: rows }, (_, i) => i),
       colIndices: Array.from({ length: cols }, (_, i) => i),
     }];
-    return kmap;
-  }
+  } else {
+    const candidateSOP: { r: number; c: number; h: number; w: number; cells: number[]; expression: string }[] = [];
 
-  // Find valid power-of-2 rectangular groups: sizes 16, 8, 4, 2, 1
-  const candidateGroups: { r: number; c: number; h: number; w: number; cells: number[]; expression: string }[] = [];
-  const groupSizes = varCount === 4
-    ? [[4, 4], [4, 2], [2, 4], [4, 1], [1, 4], [2, 2], [2, 1], [1, 2], [1, 1]]
-    : varCount === 3
-    ? [[2, 4], [2, 2], [1, 4], [2, 1], [1, 2], [1, 1]]
-    : [[2, 2], [2, 1], [1, 2], [1, 1]];
+    for (const [h, w] of groupSizes) {
+      if (h > rows || w > cols) continue;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          let allValid = true;
+          let containsAtLeastOneTarget = false;
+          const cells: number[] = [];
 
-  for (const [h, w] of groupSizes) {
-    if (h > rows || w > cols) continue;
+          for (let dr = 0; dr < h; dr++) {
+            for (let dc = 0; dc < w; dc++) {
+              const tr = (r + dr) % rows;
+              const tc = (c + dc) % cols;
+              const cellVal = grid[tr][tc];
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        // Test if all cells in rectangle (r..r+h-1, c..c+w-1) with toroidal wrap are 1 or X
-        let allValid = true;
-        let containsAtLeastOne1 = false;
-        const cells: number[] = [];
-
-        for (let dr = 0; dr < h; dr++) {
-          for (let dc = 0; dc < w; dc++) {
-            const tr = (r + dr) % rows;
-            const tc = (c + dc) % cols;
-            const cellVal = grid[tr][tc];
-
-            if (cellVal === 0) {
-              allValid = false;
-              break;
+              if (cellVal === 0) {
+                allValid = false;
+                break;
+              }
+              if (cellVal === 1) containsAtLeastOneTarget = true;
+              cells.push(kmap.cellMinterms[tr][tc]);
             }
-            if (cellVal === 1) containsAtLeastOne1 = true;
-            cells.push(kmap.cellMinterms[tr][tc]);
+            if (!allValid) break;
           }
-          if (!allValid) break;
-        }
 
-        if (allValid && containsAtLeastOne1) {
-          cells.sort((a, b) => a - b);
-          // Check if identical cell set already found
-          const isDuplicate = candidateGroups.some(g =>
-            g.cells.length === cells.length && g.cells.every((val, idx) => val === cells[idx])
-          );
-
-          if (!isDuplicate) {
-            const expr = getGroupExpression(varCount, kmap.variables, cells);
-            candidateGroups.push({ r, c, h, w, cells, expression: expr });
+          if (allValid && containsAtLeastOneTarget) {
+            cells.sort((a, b) => a - b);
+            const isDuplicate = candidateSOP.some(g =>
+              g.cells.length === cells.length && g.cells.every((val, idx) => val === cells[idx])
+            );
+            if (!isDuplicate) {
+              const expr = getGroupSOPExpression(varCount, kmap.variables, cells);
+              candidateSOP.push({ r, c, h, w, cells, expression: expr });
+            }
           }
         }
       }
     }
-  }
 
-  // Filter prime implicants (groups not strictly contained in a larger candidate group)
-  const primeGroups = candidateGroups.filter(g1 => {
-    return !candidateGroups.some(g2 =>
-      g2.cells.length > g1.cells.length && g1.cells.every(m => g2.cells.includes(m))
+    const primeSOP = candidateSOP.filter(g1 =>
+      !candidateSOP.some(g2 => g2.cells.length > g1.cells.length && g1.cells.every(m => g2.cells.includes(m)))
     );
-  });
 
-  // Select minimal cover of all minterms (Essential prime implicants + greedy)
-  const uncovered = new Set(minterms);
-  const selectedGroups: KMapGroup[] = [];
+    const uncoveredMinterms = new Set(minterms);
+    const selectedSOP: KMapGroup[] = [];
 
-  // Essential prime implicants
-  for (const m of minterms) {
-    const covering = primeGroups.filter(g => g.cells.includes(m));
-    if (covering.length === 1) {
-      const g = covering[0];
-      if (!selectedGroups.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) {
-        selectedGroups.push({
-          id: `grp_${selectedGroups.length}`,
-          color: GROUP_COLORS[selectedGroups.length % GROUP_COLORS.length],
-          cells: g.cells,
-          expression: g.expression,
-          isEssential: true,
-          rowIndices: Array.from({ length: g.h }, (_, i) => (g.r + i) % rows),
-          colIndices: Array.from({ length: g.w }, (_, i) => (g.c + i) % cols),
-        });
-        g.cells.forEach(cell => uncovered.delete(cell));
+    // Essential prime implicants
+    for (const m of minterms) {
+      const covering = primeSOP.filter(g => g.cells.includes(m));
+      if (covering.length === 1) {
+        const g = covering[0];
+        if (!selectedSOP.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) {
+          selectedSOP.push({
+            id: `grp_sop_${selectedSOP.length}`,
+            color: GROUP_COLORS[selectedSOP.length % GROUP_COLORS.length],
+            cells: g.cells,
+            expression: g.expression,
+            isEssential: true,
+            rowIndices: Array.from({ length: g.h }, (_, i) => (g.r + i) % rows),
+            colIndices: Array.from({ length: g.w }, (_, i) => (g.c + i) % cols),
+          });
+          g.cells.forEach(cell => uncoveredMinterms.delete(cell));
+        }
       }
     }
+
+    // Greedy cover for remaining uncovered minterms
+    while (uncoveredMinterms.size > 0) {
+      let bestGroup: typeof primeSOP[0] | null = null;
+      let maxCovered = -1;
+
+      for (const g of primeSOP) {
+        if (selectedSOP.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) continue;
+        const count = g.cells.filter(m => uncoveredMinterms.has(m)).length;
+        if (count > maxCovered) {
+          maxCovered = count;
+          bestGroup = g;
+        }
+      }
+
+      if (!bestGroup || maxCovered <= 0) break;
+
+      selectedSOP.push({
+        id: `grp_sop_${selectedSOP.length}`,
+        color: GROUP_COLORS[selectedSOP.length % GROUP_COLORS.length],
+        cells: bestGroup.cells,
+        expression: bestGroup.expression,
+        isEssential: false,
+        rowIndices: Array.from({ length: bestGroup.h }, (_, i) => (bestGroup.r + i) % rows),
+        colIndices: Array.from({ length: bestGroup.w }, (_, i) => (bestGroup.c + i) % cols),
+      });
+      bestGroup.cells.forEach(m => uncoveredMinterms.delete(m));
+    }
+
+    kmap.groups = selectedSOP;
+    kmap.sop = selectedSOP.map(g => g.expression).join(' + ') || '0';
   }
 
-  // Greedy cover for remaining uncovered minterms
-  while (uncovered.size > 0) {
-    let bestGroup: typeof primeGroups[0] | null = null;
-    let maxCovered = -1;
+  // -------------------------------------------------------------
+  // 2. Solve Minimal POS (Grouping 0s and Xs)
+  // -------------------------------------------------------------
+  if (maxterms.length === 0) {
+    kmap.pos = '1';
+    kmap.posGroups = [];
+  } else if (maxterms.length + dontCares.length === totalCells) {
+    kmap.pos = '0';
+    kmap.posGroups = [{
+      id: 'grp_pos_all',
+      color: GROUP_COLORS[0],
+      cells: Array.from({ length: totalCells }, (_, i) => i),
+      expression: '0',
+      isEssential: true,
+      rowIndices: Array.from({ length: rows }, (_, i) => i),
+      colIndices: Array.from({ length: cols }, (_, i) => i),
+    }];
+  } else {
+    const candidatePOS: { r: number; c: number; h: number; w: number; cells: number[]; expression: string }[] = [];
 
-    for (const g of primeGroups) {
-      if (selectedGroups.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) {
-        continue;
-      }
-      const count = g.cells.filter(m => uncovered.has(m)).length;
-      if (count > maxCovered) {
-        maxCovered = count;
-        bestGroup = g;
+    for (const [h, w] of groupSizes) {
+      if (h > rows || w > cols) continue;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          let allValid = true;
+          let containsAtLeastOneTarget = false;
+          const cells: number[] = [];
+
+          for (let dr = 0; dr < h; dr++) {
+            for (let dc = 0; dc < w; dc++) {
+              const tr = (r + dr) % rows;
+              const tc = (c + dc) % cols;
+              const cellVal = grid[tr][tc];
+
+              if (cellVal === 1) {
+                allValid = false;
+                break;
+              }
+              if (cellVal === 0) containsAtLeastOneTarget = true;
+              cells.push(kmap.cellMinterms[tr][tc]);
+            }
+            if (!allValid) break;
+          }
+
+          if (allValid && containsAtLeastOneTarget) {
+            cells.sort((a, b) => a - b);
+            const isDuplicate = candidatePOS.some(g =>
+              g.cells.length === cells.length && g.cells.every((val, idx) => val === cells[idx])
+            );
+            if (!isDuplicate) {
+              const expr = getGroupPOSExpression(varCount, kmap.variables, cells);
+              candidatePOS.push({ r, c, h, w, cells, expression: expr });
+            }
+          }
+        }
       }
     }
 
-    if (!bestGroup || maxCovered <= 0) break;
+    const primePOS = candidatePOS.filter(g1 =>
+      !candidatePOS.some(g2 => g2.cells.length > g1.cells.length && g1.cells.every(m => g2.cells.includes(m)))
+    );
 
-    selectedGroups.push({
-      id: `grp_${selectedGroups.length}`,
-      color: GROUP_COLORS[selectedGroups.length % GROUP_COLORS.length],
-      cells: bestGroup.cells,
-      expression: bestGroup.expression,
-      isEssential: false,
-      rowIndices: Array.from({ length: bestGroup.h }, (_, i) => (bestGroup.r + i) % rows),
-      colIndices: Array.from({ length: bestGroup.w }, (_, i) => (bestGroup.c + i) % cols),
+    const uncoveredMaxterms = new Set(maxterms);
+    const selectedPOS: KMapGroup[] = [];
+
+    // Essential prime implicants of 0s
+    for (const m of maxterms) {
+      const covering = primePOS.filter(g => g.cells.includes(m));
+      if (covering.length === 1) {
+        const g = covering[0];
+        if (!selectedPOS.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) {
+          selectedPOS.push({
+            id: `grp_pos_${selectedPOS.length}`,
+            color: GROUP_COLORS[selectedPOS.length % GROUP_COLORS.length],
+            cells: g.cells,
+            expression: g.expression,
+            isEssential: true,
+            rowIndices: Array.from({ length: g.h }, (_, i) => (g.r + i) % rows),
+            colIndices: Array.from({ length: g.w }, (_, i) => (g.c + i) % cols),
+          });
+          g.cells.forEach(cell => uncoveredMaxterms.delete(cell));
+        }
+      }
+    }
+
+    // Greedy cover for remaining uncovered maxterms
+    while (uncoveredMaxterms.size > 0) {
+      let bestGroup: typeof primePOS[0] | null = null;
+      let maxCovered = -1;
+
+      for (const g of primePOS) {
+        if (selectedPOS.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) continue;
+        const count = g.cells.filter(m => uncoveredMaxterms.has(m)).length;
+        if (count > maxCovered) {
+          maxCovered = count;
+          bestGroup = g;
+        }
+      }
+
+      if (!bestGroup || maxCovered <= 0) break;
+
+      selectedPOS.push({
+        id: `grp_pos_${selectedPOS.length}`,
+        color: GROUP_COLORS[selectedPOS.length % GROUP_COLORS.length],
+        cells: bestGroup.cells,
+        expression: bestGroup.expression,
+        isEssential: false,
+        rowIndices: Array.from({ length: bestGroup.h }, (_, i) => (bestGroup.r + i) % rows),
+        colIndices: Array.from({ length: bestGroup.w }, (_, i) => (bestGroup.c + i) % cols),
+      });
+      bestGroup.cells.forEach(m => uncoveredMaxterms.delete(m));
+    }
+
+    kmap.posGroups = selectedPOS;
+    const formattedPOSTerms = selectedPOS.map(g => {
+      return (selectedPOS.length > 1 && !g.expression.startsWith('('))
+        ? `(${g.expression})`
+        : g.expression;
     });
-    bestGroup.cells.forEach(m => uncovered.delete(m));
+    kmap.pos = formattedPOSTerms.join('') || '1';
   }
 
-  kmap.groups = selectedGroups;
-  kmap.sop = selectedGroups.map(g => g.expression).join(' + ') || '0';
   return kmap;
 }
 
-function getGroupExpression(varCount: number, variables: string[], minterms: number[]): string {
+function getGroupSOPExpression(varCount: number, variables: string[], minterms: number[]): string {
   let expr = '';
 
   for (let bit = 0; bit < varCount; bit++) {
@@ -276,4 +409,30 @@ function getGroupExpression(varCount: number, variables: string[], minterms: num
   }
 
   return expr || '1';
+}
+
+function getGroupPOSExpression(varCount: number, variables: string[], maxterms: number[]): string {
+  const sumParts: string[] = [];
+
+  for (let bit = 0; bit < varCount; bit++) {
+    const shift = varCount - 1 - bit;
+    const firstBit = (maxterms[0] >> shift) & 1;
+    let uniform = true;
+
+    for (let i = 1; i < maxterms.length; i++) {
+      if (((maxterms[i] >> shift) & 1) !== firstBit) {
+        uniform = false;
+        break;
+      }
+    }
+
+    if (uniform) {
+      // In POS convention: 0 is uncomplemented (A), 1 is complemented (A')
+      sumParts.push(firstBit === 0 ? variables[bit] : `${variables[bit]}'`);
+    }
+  }
+
+  if (sumParts.length === 0) return '0';
+  if (sumParts.length === 1) return sumParts[0];
+  return `(${sumParts.join(' + ')})`;
 }

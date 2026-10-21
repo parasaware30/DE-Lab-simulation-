@@ -850,6 +850,87 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
+    case 'RESISTOR':
+    case 'CAPACITOR':
+    case 'INDUCTOR':
+    case 'DIODE':
+    case 'ZENER_DIODE': {
+      // Pass-through logic state with diode unidirectional constraint
+      const inVal = node.inputs[0]?.value ?? 0;
+      const outVal: LogicValue = inVal === 1 ? 1 : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'TRANSISTOR_NPN': {
+      // Inputs: Base (0), Collector (1) -> Emitter Output (0)
+      const base = node.inputs[0]?.value === 1 ? 1 : 0;
+      const collector = node.inputs[1]?.value ?? 0;
+      const outVal: LogicValue = base === 1 ? collector : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'MOSFET_N': {
+      // Inputs: Gate (0), Drain (1) -> Source Output (0)
+      const gate = node.inputs[0]?.value === 1 ? 1 : 0;
+      const drain = node.inputs[1]?.value ?? 0;
+      const outVal: LogicValue = gate === 1 ? drain : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'POTENTIOMETER': {
+      // Inputs: Terminal 1 (0), Terminal 2 (1) -> Wiper Output (0)
+      const v1 = node.inputs[0]?.value ?? 0;
+      const v2 = node.inputs[1]?.value ?? 0;
+      const pot = node.state?.potValue ?? 100;
+      const outVal: LogicValue = pot >= 50 ? v1 : v2;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'RELAY': {
+      // Inputs: Coil (0), COM (1) -> NO (0), NC (1)
+      const coil = node.inputs[0]?.value === 1 ? 1 : 0;
+      const com = node.inputs[1]?.value ?? 0;
+      const noVal: LogicValue = coil === 1 ? com : 0;
+      const ncVal: LogicValue = coil === 0 ? com : 0;
+      if (node.outputs[0] && node.outputs[0].value !== noVal) {
+        node.outputs[0].value = noVal;
+        changed = true;
+      }
+      if (node.outputs[1] && node.outputs[1].value !== ncVal) {
+        node.outputs[1].value = ncVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'FUSE': {
+      // Inputs: In (0) -> Out (0)
+      const inVal = node.inputs[0]?.value ?? 0;
+      const isBlown = node.state?.fuseBlown ?? false;
+      const outVal: LogicValue = isBlown ? 0 : inVal;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
     default: {
       // Standard combinational gate
       const inVals = node.inputs.map(p => p.value);

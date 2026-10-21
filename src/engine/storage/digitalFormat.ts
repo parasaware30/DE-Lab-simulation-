@@ -87,6 +87,16 @@ const DELAB_TO_DIGITAL_TYPE: Record<GateType, string> = {
   'HEX_DISPLAY': 'Seven-Seg-Hex',
   'BAR_GRAPH': 'Out',
   'BUZZER': 'Out',
+  'RESISTOR': 'Resistor',
+  'CAPACITOR': 'Capacitor',
+  'INDUCTOR': 'Inductor',
+  'DIODE': 'Diode',
+  'ZENER_DIODE': 'Diode',
+  'TRANSISTOR_NPN': 'Transistor',
+  'MOSFET_N': 'NFET',
+  'POTENTIOMETER': 'Potentiometer',
+  'RELAY': 'Relay',
+  'FUSE': 'Fuse',
   'COMMENT': 'Text',
 };
 

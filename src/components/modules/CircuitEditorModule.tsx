@@ -35,8 +35,12 @@ import {
   Search,
   Sliders,
   X,
-  Cpu
+  Cpu,
+  Volume2,
+  VolumeX,
+  Zap
 } from 'lucide-react';
+import { buzzerSound } from '../../engine/audio/buzzerAudio';
 
 interface CircuitEditorProps {
   initialCircuit?: Circuit;
@@ -105,6 +109,15 @@ export const getNodeDimensions = (node: CircuitNode) => {
   }
   if (node.type.endsWith('_FF') || node.type === 'D_LATCH') {
     return { width: 120, height: 96 };
+  }
+  if (['RESISTOR', 'CAPACITOR', 'INDUCTOR', 'DIODE', 'ZENER_DIODE', 'FUSE'].includes(node.type)) {
+    return { width: 104, height: 76 };
+  }
+  if (['TRANSISTOR_NPN', 'MOSFET_N', 'POTENTIOMETER'].includes(node.type)) {
+    return { width: 116, height: 90 };
+  }
+  if (node.type === 'RELAY') {
+    return { width: 124, height: 96 };
   }
   if (['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'NOR3', 'XOR3', 'AND4', 'OR4', 'NAND4', 'NOR4', 'TRI_STATE'].includes(node.type)) {
     const inputCount = Math.max(2, node.inputs.length);
@@ -396,6 +409,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const [jumpBridgeSpan, setJumpBridgeSpan] = useState<number>(10); // Length / span along wire
   const [showJumpSettings, setShowJumpSettings] = useState<boolean>(false);
   const [showMobilePaletteModal, setShowMobilePaletteModal] = useState<boolean>(false);
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [paletteSearch, setPaletteSearch] = useState<string>('');
   
   // Wire creation state
@@ -509,6 +523,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       }));
     }
   }, [simResult, isSimulating]);
+
+  // Real Buzzer Sound: activates Web Audio oscillator when any BUZZER receives logic 1
+  useEffect(() => {
+    if (!isSimulating) {
+      buzzerSound.stop();
+      return;
+    }
+
+    const hasActiveBuzzer = simResult.nodes.some(
+      n => n.type === 'BUZZER' && n.inputs[0]?.value === 1
+    );
+
+    if (hasActiveBuzzer) {
+      buzzerSound.start();
+    } else {
+      buzzerSound.stop();
+    }
+
+    return () => {
+      buzzerSound.stop();
+    };
+  }, [simResult.nodes, isSimulating]);
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -1078,6 +1114,73 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           { id: 'in_0', name: 'In', type: 'input', value: 0 },
         ];
         outputs = [];
+        break;
+      case 'RESISTOR':
+        label = 'Resistor (1kΩ)';
+        inputs = [{ id: 'in_0', name: '1', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: '2', type: 'output', value: 0 }];
+        break;
+      case 'CAPACITOR':
+        label = 'Capacitor (10µF)';
+        inputs = [{ id: 'in_0', name: '+', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: '-', type: 'output', value: 0 }];
+        break;
+      case 'INDUCTOR':
+        label = 'Inductor (10mH)';
+        inputs = [{ id: 'in_0', name: '1', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: '2', type: 'output', value: 0 }];
+        break;
+      case 'DIODE':
+        label = 'Diode (1N4148)';
+        inputs = [{ id: 'in_0', name: 'A', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: 'K', type: 'output', value: 0 }];
+        break;
+      case 'ZENER_DIODE':
+        label = 'Zener Diode (5.1V)';
+        inputs = [{ id: 'in_0', name: 'A', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: 'K', type: 'output', value: 0 }];
+        break;
+      case 'TRANSISTOR_NPN':
+        label = 'NPN BJT (2N3904)';
+        inputs = [
+          { id: 'in_0', name: 'B', type: 'input', value: 0 },
+          { id: 'in_1', name: 'C', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'E', type: 'output', value: 0 }];
+        break;
+      case 'MOSFET_N':
+        label = 'N-Ch MOSFET';
+        inputs = [
+          { id: 'in_0', name: 'G', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'S', type: 'output', value: 0 }];
+        break;
+      case 'POTENTIOMETER':
+        label = 'Potentiometer';
+        inputs = [
+          { id: 'in_0', name: 'T1', type: 'input', value: 0 },
+          { id: 'in_1', name: 'T2', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'W', type: 'output', value: 0 }];
+        state = { potValue: 100 };
+        break;
+      case 'RELAY':
+        label = 'SPDT Relay';
+        inputs = [
+          { id: 'in_0', name: 'Coil', type: 'input', value: 0 },
+          { id: 'in_1', name: 'COM', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'NO', type: 'output', value: 0 },
+          { id: 'out_1', name: 'NC', type: 'output', value: 0 },
+        ];
+        break;
+      case 'FUSE':
+        label = 'Fuse (500mA)';
+        inputs = [{ id: 'in_0', name: '1', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: '2', type: 'output', value: 0 }];
+        state = { fuseBlown: false };
         break;
       default:
         inputs = [
@@ -1791,6 +1894,23 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 </div>
               </div>
             )}
+            {/* Buzzer Audio Mute / Unmute Toggle */}
+            <button
+              onClick={() => {
+                const nextMuted = !isAudioMuted;
+                buzzerSound.setMuted(nextMuted);
+                setIsAudioMuted(nextMuted);
+                setToastMessage(nextMuted ? 'Buzzer audio muted' : 'Buzzer audio sound enabled');
+              }}
+              title={isAudioMuted ? 'Unmute Buzzer Sound' : 'Mute Buzzer Sound'}
+              className={`p-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                isAudioMuted
+                  ? 'text-slate-500 hover:text-slate-300 border-slate-700/60 bg-slate-800/40'
+                  : 'text-amber-400 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20'
+              }`}
+            >
+              {isAudioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
           </div>
 
           <div className="h-4 w-[1px] bg-slate-800 mx-1" />
@@ -2024,6 +2144,23 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   { type: 'BAR_GRAPH' as GateType, label: 'Bar Graph', sub: '4-Level Lit' },
                   { type: 'BUZZER' as GateType, label: 'Buzzer', sub: 'Sound / Tone' },
                   { type: 'BCD_TO_7SEG' as GateType, label: 'BCD to 7-Seg', sub: '4-Bit Decoder' },
+                ],
+              },
+              {
+                title: 'Discrete & Passive Electronics',
+                badge: 'Analog/Discrete',
+                badgeColor: 'text-amber-400',
+                items: [
+                  { type: 'RESISTOR' as GateType, label: 'Resistor', sub: '1kΩ Current Limit' },
+                  { type: 'CAPACITOR' as GateType, label: 'Capacitor', sub: '10µF Filter/Tank' },
+                  { type: 'INDUCTOR' as GateType, label: 'Inductor', sub: '10mH Choke' },
+                  { type: 'DIODE' as GateType, label: 'Diode', sub: '1N4148 Rectifier' },
+                  { type: 'ZENER_DIODE' as GateType, label: 'Zener Diode', sub: '5.1V Clamp' },
+                  { type: 'TRANSISTOR_NPN' as GateType, label: 'NPN Transistor', sub: '2N3904 Switch' },
+                  { type: 'MOSFET_N' as GateType, label: 'N-Ch MOSFET', sub: 'Switching FET' },
+                  { type: 'POTENTIOMETER' as GateType, label: 'Potentiometer', sub: 'Variable Divider' },
+                  { type: 'RELAY' as GateType, label: 'SPDT Relay', sub: 'Isolated Switch' },
+                  { type: 'FUSE' as GateType, label: 'Fuse', sub: 'Overcurrent Protection' },
                 ],
               },
             ];
@@ -2425,6 +2562,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               const isRegister = node.type === 'REGISTER_4BIT';
               const isLed = node.type === 'LED';
               const isFF = node.type.endsWith('_FF') || node.type === 'D_LATCH';
+              const isDiscrete = ['RESISTOR', 'CAPACITOR', 'INDUCTOR', 'DIODE', 'ZENER_DIODE', 'TRANSISTOR_NPN', 'MOSFET_N', 'POTENTIOMETER', 'RELAY', 'FUSE'].includes(node.type);
               const isMsi = [
                 'HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB',
                 'MUX_2TO1', 'MUX_4TO1', 'MUX_8TO1', 'DEMUX_1TO2', 'DEMUX_1TO4',
@@ -2934,6 +3072,124 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                           </text>
                         </g>
                       )}
+
+                      {/* Discrete & Passive Electronic Components Schematic Graphics */}
+                      {isDiscrete && (() => {
+                        switch (node.type) {
+                          case 'RESISTOR':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <path d="M 16 40 L 26 40 L 32 30 L 40 50 L 48 30 L 56 50 L 64 30 L 72 50 L 78 40 L 88 40" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <text x={width / 2} y="66" fill="#f59e0b" fontSize="9" fontWeight="bold" textAnchor="middle">1 kΩ</text>
+                              </g>
+                            );
+                          case 'CAPACITOR':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <path d="M 16 40 L 44 40 M 44 26 L 44 54 M 58 26 L 58 54 M 58 40 L 88 40" fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#38bdf8" fontSize="9" fontWeight="bold" textAnchor="middle">10 µF</text>
+                              </g>
+                            );
+                          case 'INDUCTOR':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <path d="M 14 42 L 24 42 A 7 7 0 0 1 38 42 A 7 7 0 0 1 52 42 A 7 7 0 0 1 66 42 A 7 7 0 0 1 80 42 L 90 42" fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#a855f7" fontSize="9" fontWeight="bold" textAnchor="middle">10 mH</text>
+                              </g>
+                            );
+                          case 'DIODE':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <path d="M 16 40 L 40 40 M 64 40 L 88 40" stroke="#10b981" strokeWidth="2" />
+                                <polygon points="40,28 64,40 40,52" fill="#10b98130" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" />
+                                <line x1="64" y1="28" x2="64" y2="52" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#10b981" fontSize="8.5" fontWeight="bold" textAnchor="middle">1N4148</text>
+                              </g>
+                            );
+                          case 'ZENER_DIODE':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <path d="M 16 40 L 40 40 M 64 40 L 88 40" stroke="#06b6d4" strokeWidth="2" />
+                                <polygon points="40,28 64,40 40,52" fill="#06b6d430" stroke="#06b6d4" strokeWidth="2" strokeLinejoin="round" />
+                                <path d="M 60 26 L 64 28 L 64 52 L 68 54" fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#06b6d4" fontSize="8.5" fontWeight="bold" textAnchor="middle">5.1V Zener</text>
+                              </g>
+                            );
+                          case 'TRANSISTOR_NPN':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="45" y1="30" x2="45" y2="60" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="16" y1="45" x2="45" y2="45" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="45" y1="36" x2="72" y2="24" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="72" y1="24" x2="98" y2="24" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="45" y1="54" x2="72" y2="66" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="72" y1="66" x2="98" y2="66" stroke="#f43f5e" strokeWidth="2" />
+                                <polygon points="66,61 74,67 63,67" fill="#f43f5e" />
+                                <text x={width / 2} y="80" fill="#f43f5e" fontSize="8" fontWeight="bold" textAnchor="middle">2N3904 (NPN)</text>
+                              </g>
+                            );
+                          case 'MOSFET_N':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="16" y1="45" x2="40" y2="45" stroke="#3b82f6" strokeWidth="2" />
+                                <line x1="40" y1="28" x2="40" y2="62" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+                                <line x1="48" y1="28" x2="48" y2="62" stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="6,4" strokeLinecap="round" />
+                                <line x1="48" y1="34" x2="72" y2="24" stroke="#3b82f6" strokeWidth="2" />
+                                <line x1="72" y1="24" x2="98" y2="24" stroke="#3b82f6" strokeWidth="2" />
+                                <line x1="48" y1="56" x2="72" y2="66" stroke="#3b82f6" strokeWidth="2" />
+                                <line x1="72" y1="66" x2="98" y2="66" stroke="#3b82f6" strokeWidth="2" />
+                                <polygon points="56,53 48,56 56,59" fill="#3b82f6" />
+                                <text x={width / 2} y="80" fill="#3b82f6" fontSize="8" fontWeight="bold" textAnchor="middle">N-MOSFET</text>
+                              </g>
+                            );
+                          case 'POTENTIOMETER':
+                            return (
+                              <g className="select-none">
+                                <path d="M 18 36 L 28 36 L 33 28 L 41 44 L 49 28 L 57 44 L 65 28 L 73 44 L 78 36 L 88 36" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M 53 62 L 53 46 M 50 49 L 53 44 L 56 49" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <text x={width / 2} y="78" fill="#eab308" fontSize="8.5" fontWeight="bold" textAnchor="middle">{node.state?.potValue ?? 100}% (10kΩ)</text>
+                              </g>
+                            );
+                          case 'RELAY': {
+                            const isEnergized = Boolean(node.state?.relayState);
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <rect x="20" y="32" width="22" height="34" rx="3" fill="#334155" stroke={isEnergized ? '#10b981' : '#64748b'} strokeWidth="1.5" />
+                                <path d="M 23 37 Q 31 32 39 37 Q 23 46 39 46 Q 23 55 39 55 Q 23 63 39 63" fill="none" stroke={isEnergized ? '#10b981' : '#94a3b8'} strokeWidth="1.5" />
+                                <circle cx="60" cy="50" r="3" fill="#cbd5e1" />
+                                <circle cx="92" cy="36" r="3" fill="#cbd5e1" />
+                                <circle cx="92" cy="62" r="3" fill="#cbd5e1" />
+                                <line x1="60" y1="50" x2="90" y2={isEnergized ? 37 : 61} stroke={isEnergized ? '#10b981' : '#f59e0b'} strokeWidth="2" strokeLinecap="round" />
+                                <text x="74" y="38" fill="#94a3b8" fontSize="7" fontWeight="bold">NO</text>
+                                <text x="74" y="65" fill="#94a3b8" fontSize="7" fontWeight="bold">NC</text>
+                                <text x={width / 2} y="85" fill={isEnergized ? '#10b981' : '#94a3b8'} fontSize="8" fontWeight="bold" textAnchor="middle">
+                                  {isEnergized ? '⚡ ENERGIZED' : 'DE-ENERGIZED'}
+                                </text>
+                              </g>
+                            );
+                          }
+                          case 'FUSE': {
+                            const isBlown = Boolean(node.state?.fuseBlown);
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <rect x="24" y="30" width="56" height="20" rx="4" fill="#020617" stroke={isBlown ? '#ef4444' : '#10b981'} strokeWidth="1.5" />
+                                <rect x="24" y="30" width="8" height="20" rx="2" fill="#64748b" />
+                                <rect x="72" y="30" width="8" height="20" rx="2" fill="#64748b" />
+                                {isBlown ? (
+                                  <path d="M 32 40 L 44 40 M 60 40 L 72 40" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+                                ) : (
+                                  <path d="M 32 40 Q 42 34 52 40 T 72 40" fill="none" stroke="#10b981" strokeWidth="2" />
+                                )}
+                                <text x={width / 2} y="64" fill={isBlown ? '#ef4444' : '#10b981'} fontSize="8" fontWeight="bold" textAnchor="middle">
+                                  {isBlown ? '💥 BLOWN' : '2A FUSE'}
+                                </text>
+                              </g>
+                            );
+                          }
+                          default:
+                            return null;
+                        }
+                      })()}
 
                       {/* Interactive LED Indicator Lamp */}
                       {isLed && (
@@ -3620,7 +3876,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             <div className="flex items-center justify-between p-3.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Cpu className="h-4 w-4 text-cyan-400" />
-                <h3 className="text-sm font-bold text-white">Digital Electronics Components (47)</h3>
+                <h3 className="text-sm font-bold text-white">Components & Electronics (57)</h3>
               </div>
               <button
                 onClick={() => setShowMobilePaletteModal(false)}
@@ -3736,6 +3992,21 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       { type: 'BAR_GRAPH' as GateType, label: 'Bar Graph', sub: '4-Level Lit' },
                       { type: 'BUZZER' as GateType, label: 'Buzzer', sub: 'Sound / Tone' },
                       { type: 'BCD_TO_7SEG' as GateType, label: 'BCD to 7-Seg', sub: '4-Bit Decoder' },
+                    ],
+                  },
+                  {
+                    title: 'Discrete & Passive Electronics',
+                    items: [
+                      { type: 'RESISTOR' as GateType, label: 'Resistor', sub: '1kΩ Current Limit' },
+                      { type: 'CAPACITOR' as GateType, label: 'Capacitor', sub: '10µF Filter/Tank' },
+                      { type: 'INDUCTOR' as GateType, label: 'Inductor', sub: '10mH Choke' },
+                      { type: 'DIODE' as GateType, label: 'Diode', sub: '1N4148 Rectifier' },
+                      { type: 'ZENER_DIODE' as GateType, label: 'Zener Diode', sub: '5.1V Clamp' },
+                      { type: 'TRANSISTOR_NPN' as GateType, label: 'NPN Transistor', sub: '2N3904 Switch' },
+                      { type: 'MOSFET_N' as GateType, label: 'N-Ch MOSFET', sub: 'Switching FET' },
+                      { type: 'POTENTIOMETER' as GateType, label: 'Potentiometer', sub: 'Variable Divider' },
+                      { type: 'RELAY' as GateType, label: 'SPDT Relay', sub: 'Isolated Switch' },
+                      { type: 'FUSE' as GateType, label: 'Fuse', sub: 'Overcurrent Protection' },
                     ],
                   },
                 ];
