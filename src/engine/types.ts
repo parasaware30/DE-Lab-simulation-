@@ -1,6 +1,13 @@
 export type LogicValue = 0 | 1 | 'Z' | 'X'; // 0: Low, 1: High, Z: High-Z/Disconnected, X: Undefined/Error
 
 export type GateType = 
+  // Signal Sources & Constants
+  | 'SWITCH'
+  | 'PUSH_BUTTON'
+  | 'CLOCK'
+  | 'CONST_HIGH'
+  | 'CONST_LOW'
+  // Fundamental & Extended Logic Gates
   | 'AND' 
   | 'OR' 
   | 'NOT' 
@@ -9,15 +16,35 @@ export type GateType =
   | 'XOR' 
   | 'XNOR'
   | 'BUFFER'
-  | 'SWITCH'
-  | 'CLOCK'
-  | 'LED'
-  | 'PROBE'
+  | 'AND3'
+  | 'OR3'
+  | 'NAND3'
+  | 'TRI_STATE'
+  // MSI Combinational Logic ICs
+  | 'HALF_ADDER'
+  | 'FULL_ADDER'
+  | 'HALF_SUB'
+  | 'FULL_SUB'
+  | 'MUX_2TO1'
+  | 'MUX_4TO1'
+  | 'DEMUX_1TO2'
+  | 'DEMUX_1TO4'
+  | 'DECODER_2TO4'
+  | 'PRIORITY_ENC_4TO2'
+  | 'MAG_COMP_2BIT'
+  // Sequential Flip-Flops & Storage
   | 'SR_FF'
   | 'D_FF'
   | 'JK_FF'
   | 'T_FF'
+  | 'COUNTER_4BIT'
+  | 'SHIFT_REG_4BIT'
+  // Displays & Measurement Probes
+  | 'LED'
+  | 'PROBE'
   | 'SEVEN_SEG'
+  | 'BCD_TO_7SEG'
+  // Documentation
   | 'COMMENT';
 
 export interface Port {
@@ -44,7 +71,9 @@ export interface CircuitNode {
     qBar?: LogicValue;
     prevClock?: LogicValue;
     frequency?: number; // for clock
-    highValue?: boolean; // for switch
+    highValue?: boolean; // for switch/button
+    counterValue?: number; // for COUNTER_4BIT (0-15)
+    regValues?: LogicValue[]; // for SHIFT_REG_4BIT
   };
 }
 

@@ -31,10 +31,10 @@ describe('DE-Lab Pro App Integration Tests', () => {
     expect(screen.getAllByText(/Combinational Logic Circuits/i).length).toBeGreaterThan(0);
   });
 
-  it('navigates to Sequential Simulator module', () => {
+  it('navigates to Number Systems & Radix Converter module', () => {
     render(<App />);
-    const seqButtons = screen.getAllByText(/Sequential/i);
-    fireEvent.click(seqButtons[0]);
-    expect(screen.getAllByText(/Sequential Logic & Clocking/i).length).toBeGreaterThan(0);
+    const numButtons = screen.getAllByText(/Number Systems/i);
+    fireEvent.click(numButtons[0]);
+    expect(screen.getAllByText(/Number Systems & Arithmetic/i).length).toBeGreaterThan(0);
   });
 });

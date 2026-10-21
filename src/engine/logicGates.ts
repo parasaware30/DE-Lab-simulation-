@@ -43,12 +43,15 @@ export function evalGate(type: GateType, inputs: LogicValue[]): LogicValue {
     case 'BUFFER':
       return inputs[0] === 0 ? 0 : inputs[0] === 1 ? 1 : 'X';
     case 'AND':
+    case 'AND3':
       return evalAnd(inputs);
-    case 'NAND': {
+    case 'NAND':
+    case 'NAND3': {
       const res = evalAnd(inputs);
       return evalNot(res);
     }
     case 'OR':
+    case 'OR3':
       return evalOr(inputs);
     case 'NOR': {
       const res = evalOr(inputs);
@@ -59,6 +62,14 @@ export function evalGate(type: GateType, inputs: LogicValue[]): LogicValue {
     case 'XNOR': {
       const res = evalXor(inputs);
       return evalNot(res);
+    }
+    case 'TRI_STATE': {
+      // inputs: [Data, Enable]
+      const data = inputs[0];
+      const enable = inputs[1];
+      if (enable === 1) return data === 1 ? 1 : data === 0 ? 0 : 'X';
+      if (enable === 0) return 'Z';
+      return 'X';
     }
     default:
       return 'X';

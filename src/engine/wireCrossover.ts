@@ -209,10 +209,26 @@ export function findWireCrossovers(wires: WireGeometryInput[]): WireIntersection
  * Calculates SVG path string for a Jump Arch of radius R centered at (cx, cy)
  * along tangent angle jumpAngle
  */
-export function getJumpArcPath(cx: number, cy: number, jumpAngle: number, radius = 8): {
+export function getJumpArcPath(
+  cx: number,
+  cy: number,
+  jumpAngle: number,
+  optionsOrRadius: number | { height?: number; span?: number } = 8
+): {
   arcPath: string;
   maskCircle: { cx: number; cy: number; r: number };
 } {
+  let height = 8;
+  let span = 9;
+
+  if (typeof optionsOrRadius === 'number') {
+    height = optionsOrRadius;
+    span = Math.max(5, optionsOrRadius + 1);
+  } else if (optionsOrRadius) {
+    height = optionsOrRadius.height ?? 8;
+    span = optionsOrRadius.span ?? 9;
+  }
+
   const vx = Math.cos(jumpAngle);
   const vy = Math.sin(jumpAngle);
 
@@ -225,21 +241,28 @@ export function getJumpArcPath(cx: number, cy: number, jumpAngle: number, radius
   }
 
   // Start & End points along the jumping wire
-  const x1 = cx - radius * vx;
-  const y1 = cy - radius * vy;
-  const x2 = cx + radius * vx;
-  const y2 = cy + radius * vy;
+  const x1 = cx - span * vx;
+  const y1 = cy - span * vy;
+  const x2 = cx + span * vx;
+  const y2 = cy + span * vy;
 
-  // Arc path: smooth semi-circular arch over the crossed wire
-  // Using an elliptic arc with radius (radius, radius)
-  const arcPath = `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`;
+  // Parabolic arch control points
+  const peakX = cx + height * nx;
+  const peakY = cy + height * ny;
+
+  const c1x = x1 + (peakX - cx) * 0.9;
+  const c1y = y1 + (peakY - cy) * 0.9;
+  const c2x = x2 + (peakX - cx) * 0.9;
+  const c2y = y2 + (peakY - cy) * 0.9;
+
+  const arcPath = `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
 
   return {
     arcPath,
     maskCircle: {
       cx,
       cy,
-      r: radius - 1.5,
+      r: Math.max(4, Math.min(span, height) - 1.5),
     },
   };
 }

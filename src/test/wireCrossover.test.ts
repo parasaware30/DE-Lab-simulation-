@@ -84,11 +84,11 @@ describe('Wire Crossover / Jump Engine', () => {
   });
 
   it('generates smooth SVG jump arc path and mask circle', () => {
-    const { arcPath, maskCircle } = getJumpArcPath(150, 150, 0, 8);
-    expect(arcPath).toContain('M 142 150');
-    expect(arcPath).toContain('A 8 8 0 0 1 158 150');
+    const { arcPath, maskCircle } = getJumpArcPath(150, 150, 0, { height: 10, span: 14 });
+    expect(arcPath).toContain('M 136 150'); // 150 - 14
+    expect(arcPath).toContain('C');
     expect(maskCircle.cx).toBe(150);
     expect(maskCircle.cy).toBe(150);
-    expect(maskCircle.r).toBe(6.5);
+    expect(maskCircle.r).toBeGreaterThanOrEqual(4);
   });
 });

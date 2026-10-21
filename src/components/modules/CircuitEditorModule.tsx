@@ -32,6 +32,8 @@ import {
   FileText,
   Check,
   Palette,
+  Search,
+  Sliders,
   X
 } from 'lucide-react';
 
@@ -69,22 +71,38 @@ export const getNodeDimensions = (node: CircuitNode) => {
   if (node.type === 'COMMENT') {
     return { width: node.width || 200, height: node.height || 130 };
   }
+  if (node.type === 'SEVEN_SEG') {
+    return { width: 130, height: 170 };
+  }
+  if (node.type === 'BCD_TO_7SEG') {
+    return { width: 140, height: 180 };
+  }
+  if (node.type === 'COUNTER_4BIT' || node.type === 'SHIFT_REG_4BIT') {
+    return { width: 130, height: 120 };
+  }
+  if (['HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB', 'MAG_COMP_2BIT'].includes(node.type)) {
+    return { width: 130, height: 110 };
+  }
+  if (['MUX_2TO1', 'MUX_4TO1', 'DEMUX_1TO2', 'DEMUX_1TO4', 'DECODER_2TO4', 'PRIORITY_ENC_4TO2'].includes(node.type)) {
+    const maxPorts = Math.max(node.inputs.length, node.outputs.length);
+    return { width: 136, height: Math.max(96, maxPorts * 26 + 26) };
+  }
   if (node.type.endsWith('_FF')) {
     return { width: 120, height: 96 };
   }
-  if (['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER'].includes(node.type)) {
+  if (['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'TRI_STATE'].includes(node.type)) {
     const inputCount = Math.max(2, node.inputs.length);
     const height = Math.max(80, inputCount * 28 + 24);
     return { width: 116, height };
   }
-  if (node.type === 'SWITCH' || node.type === 'CLOCK') {
+  if (['SWITCH', 'CLOCK', 'PUSH_BUTTON', 'CONST_HIGH', 'CONST_LOW'].includes(node.type)) {
     return { width: 104, height: 78 };
   }
-  if (node.type === 'LED') {
+  if (node.type === 'LED' || node.type === 'PROBE') {
     return { width: 96, height: 78 };
   }
   const maxPorts = Math.max(node.inputs.length, node.outputs.length);
-  return { width: 116, height: Math.max(76, maxPorts * 26 + 24) };
+  return { width: 120, height: Math.max(76, maxPorts * 26 + 24) };
 };
 
 /**
@@ -138,13 +156,16 @@ const GateSymbol: React.FC<{
       {inputCount >= 1 && (
         <line x1="0" y1={inY0} x2={gx} y2={inY0} stroke="#64748b" strokeWidth="2" />
       )}
+      {inputCount >= 3 && (
+        <line x1="0" y1={(inY0 + inY1) / 2} x2={gx} y2={(inY0 + inY1) / 2} stroke="#64748b" strokeWidth="2" />
+      )}
       {inputCount >= 2 && (
         <line x1="0" y1={inY1} x2={gx} y2={inY1} stroke="#64748b" strokeWidth="2" />
       )}
       <line x1={gx + gw - 4} y1={midY} x2={width} y2={midY} stroke="#64748b" strokeWidth="2" />
 
       <g transform={`translate(${gx}, ${gy})`}>
-        {type === 'AND' && (
+        {(type === 'AND' || type === 'AND3') && (
           <path
             d="M 2 2 L 22 2 A 16 16 0 0 1 22 34 L 2 34 Z"
             fill="#0f172a"
@@ -153,7 +174,7 @@ const GateSymbol: React.FC<{
             strokeLinejoin="round"
           />
         )}
-        {type === 'NAND' && (
+        {(type === 'NAND' || type === 'NAND3') && (
           <>
             <path
               d="M 2 2 L 20 2 A 16 16 0 0 1 20 34 L 2 34 Z"
@@ -165,7 +186,7 @@ const GateSymbol: React.FC<{
             <circle cx="39.5" cy="18" r="3.5" fill="#0f172a" stroke={strokeColor} strokeWidth="2" />
           </>
         )}
-        {type === 'OR' && (
+        {(type === 'OR' || type === 'OR3') && (
           <path
             d="M 2 2 Q 13 18 2 34 Q 26 34 44 18 Q 26 2 2 2 Z"
             fill="#0f172a"
@@ -242,6 +263,18 @@ const GateSymbol: React.FC<{
             strokeLinejoin="round"
           />
         )}
+        {type === 'TRI_STATE' && (
+          <>
+            <path
+              d="M 4 6 L 36 18 L 4 30 Z"
+              fill="#0f172a"
+              stroke={strokeColor}
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+            <line x1="20" y1="-2" x2="20" y2="12" stroke="#64748b" strokeWidth="2" />
+          </>
+        )}
       </g>
     </g>
   );
@@ -250,8 +283,10 @@ const GateSymbol: React.FC<{
 const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
   switch (type) {
     case 'AND':
+    case 'AND3':
       return <path d="M 4 4 L 18 4 A 10 10 0 0 1 18 24 L 4 24 Z" fill="none" stroke="currentColor" strokeWidth="2" />;
     case 'NAND':
+    case 'NAND3':
       return (
         <>
           <path d="M 3 4 L 16 4 A 10 10 0 0 1 16 24 L 3 24 Z" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -259,6 +294,7 @@ const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
         </>
       );
     case 'OR':
+    case 'OR3':
       return <path d="M 4 4 Q 10 14 4 24 Q 20 24 32 14 Q 20 4 4 4 Z" fill="none" stroke="currentColor" strokeWidth="2" />;
     case 'NOR':
       return (
@@ -291,6 +327,13 @@ const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
       );
     case 'BUFFER':
       return <path d="M 4 4 L 26 14 L 4 24 Z" fill="none" stroke="currentColor" strokeWidth="2" />;
+    case 'TRI_STATE':
+      return (
+        <>
+          <path d="M 4 5 L 24 14 L 4 23 Z" fill="none" stroke="currentColor" strokeWidth="2" />
+          <line x1="14" y1="2" x2="14" y2="9" stroke="currentColor" strokeWidth="2" />
+        </>
+      );
     default:
       return null;
   }
@@ -312,9 +355,14 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   // Selection & Wiring State
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+  const [showPropertiesPanel, setShowPropertiesPanel] = useState<boolean>(false);
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
   const [editorMode, setEditorMode] = useState<'SELECT' | 'WIRE'>('SELECT');
   const [wireJumpsEnabled, setWireJumpsEnabled] = useState<boolean>(true);
+  const [jumpBridgeSize, setJumpBridgeSize] = useState<number>(8); // Height / amplitude of jump arch
+  const [jumpBridgeSpan, setJumpBridgeSpan] = useState<number>(10); // Length / span along wire
+  const [showJumpSettings, setShowJumpSettings] = useState<boolean>(false);
+  const [paletteSearch, setPaletteSearch] = useState<string>('');
   
   // Wire creation state
   const [wireStart, setWireStart] = useState<{ nodeId: string; portIndex: number; type: 'input' | 'output' } | null>(null);
@@ -481,7 +529,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     const nextCircuit = {
       ...circuit,
       nodes: circuit.nodes.map(n => {
-        if (n.id === nodeId && (n.type === 'SWITCH' || n.type === 'CLOCK')) {
+        if (n.id === nodeId && (n.type === 'SWITCH' || n.type === 'CLOCK' || n.type === 'PUSH_BUTTON')) {
           const nextVal = !n.state?.highValue;
           return {
             ...n,
@@ -573,6 +621,247 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         ];
         state = { q: 0, qBar: 1, prevClock: 0 };
         break;
+      case 'CONST_HIGH':
+        label = 'VCC (1)';
+        outputs = [{ id: 'out_0', name: '1', type: 'output', value: 1 }];
+        break;
+      case 'CONST_LOW':
+        label = 'GND (0)';
+        outputs = [{ id: 'out_0', name: '0', type: 'output', value: 0 }];
+        break;
+      case 'PUSH_BUTTON':
+        label = `PB_${circuit.nodes.filter(n => n.type === 'PUSH_BUTTON').length + 1}`;
+        outputs = [{ id: 'out_0', name: 'Q', type: 'output', value: 0 }];
+        state = { highValue: false };
+        break;
+      case 'PROBE':
+        label = `PROBE_${circuit.nodes.filter(n => n.type === 'PROBE').length + 1}`;
+        inputs = [{ id: 'in_0', name: 'In', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: 'Val', type: 'output', value: 0 }];
+        break;
+      case 'AND3':
+      case 'OR3':
+      case 'NAND3':
+        label = type;
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+          { id: 'in_2', name: 'C', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: type === 'NAND3' ? 1 : 0 }];
+        break;
+      case 'TRI_STATE':
+        label = 'Tri-State';
+        inputs = [
+          { id: 'in_0', name: 'In', type: 'input', value: 0 },
+          { id: 'in_1', name: 'EN', type: 'input', value: 1 },
+        ];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: 0 }];
+        break;
+      case 'HALF_ADDER':
+        label = 'Half Adder';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Sum', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Carry', type: 'output', value: 0 },
+        ];
+        break;
+      case 'FULL_ADDER':
+        label = 'Full Adder';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+          { id: 'in_2', name: 'Cin', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Sum', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Cout', type: 'output', value: 0 },
+        ];
+        break;
+      case 'HALF_SUB':
+        label = 'Half Subtractor';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Diff', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Borrow', type: 'output', value: 0 },
+        ];
+        break;
+      case 'FULL_SUB':
+        label = 'Full Subtractor';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+          { id: 'in_2', name: 'Bin', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Diff', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Bout', type: 'output', value: 0 },
+        ];
+        break;
+      case 'MUX_2TO1':
+        label = '2:1 MUX';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'S', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: 0 }];
+        break;
+      case 'MUX_4TO1':
+        label = '4:1 MUX';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+          { id: 'in_4', name: 'S0', type: 'input', value: 0 },
+          { id: 'in_5', name: 'S1', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: 0 }];
+        break;
+      case 'DEMUX_1TO2':
+        label = '1:2 DEMUX';
+        inputs = [
+          { id: 'in_0', name: 'In', type: 'input', value: 0 },
+          { id: 'in_1', name: 'S', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Y0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Y1', type: 'output', value: 0 },
+        ];
+        break;
+      case 'DEMUX_1TO4':
+        label = '1:4 DEMUX';
+        inputs = [
+          { id: 'in_0', name: 'In', type: 'input', value: 0 },
+          { id: 'in_1', name: 'S0', type: 'input', value: 0 },
+          { id: 'in_2', name: 'S1', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Y0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Y1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Y2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Y3', type: 'output', value: 0 },
+        ];
+        break;
+      case 'DECODER_2TO4':
+        label = '2-to-4 Decoder';
+        inputs = [
+          { id: 'in_0', name: 'A0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'A1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'EN', type: 'input', value: 1 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Y0', type: 'output', value: 1 },
+          { id: 'out_1', name: 'Y1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Y2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Y3', type: 'output', value: 0 },
+        ];
+        break;
+      case 'PRIORITY_ENC_4TO2':
+        label = '4:2 Priority Enc';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'A0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'A1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'V', type: 'output', value: 0 },
+        ];
+        break;
+      case 'MAG_COMP_2BIT':
+        label = 'Comparator';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'A>B', type: 'output', value: 0 },
+          { id: 'out_1', name: 'A=B', type: 'output', value: 1 },
+          { id: 'out_2', name: 'A<B', type: 'output', value: 0 },
+        ];
+        break;
+      case 'T_FF':
+        label = 'T Flip-Flop';
+        inputs = [
+          { id: 'in_0', name: 'T', type: 'input', value: 0 },
+          { id: 'in_1', name: 'CLK', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Q', type: 'output', value: 0 },
+          { id: 'out_1', name: "Q'", type: 'output', value: 1 },
+        ];
+        state = { q: 0, qBar: 1, prevClock: 0 };
+        break;
+      case 'COUNTER_4BIT':
+        label = '4-Bit Counter';
+        inputs = [
+          { id: 'in_0', name: 'CLK', type: 'input', value: 0 },
+          { id: 'in_1', name: 'RST', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Q0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Q1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Q2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Q3', type: 'output', value: 0 },
+        ];
+        state = { counterValue: 0, prevClock: 0 };
+        break;
+      case 'SHIFT_REG_4BIT':
+        label = '4-Bit Shift Reg';
+        inputs = [
+          { id: 'in_0', name: 'DIN', type: 'input', value: 0 },
+          { id: 'in_1', name: 'CLK', type: 'input', value: 0 },
+          { id: 'in_2', name: 'RST', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Q0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Q1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Q2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Q3', type: 'output', value: 0 },
+        ];
+        state = { regValues: [0, 0, 0, 0], prevClock: 0 };
+        break;
+      case 'SEVEN_SEG':
+        label = '7-Segment Display';
+        inputs = [
+          { id: 'in_0', name: 'a', type: 'input', value: 0 },
+          { id: 'in_1', name: 'b', type: 'input', value: 0 },
+          { id: 'in_2', name: 'c', type: 'input', value: 0 },
+          { id: 'in_3', name: 'd', type: 'input', value: 0 },
+          { id: 'in_4', name: 'e', type: 'input', value: 0 },
+          { id: 'in_5', name: 'f', type: 'input', value: 0 },
+          { id: 'in_6', name: 'g', type: 'input', value: 0 },
+        ];
+        outputs = [];
+        break;
+      case 'BCD_TO_7SEG':
+        label = 'BCD to 7-Seg';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+          { id: 'in_2', name: 'C', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'a', type: 'output', value: 1 },
+          { id: 'out_1', name: 'b', type: 'output', value: 1 },
+          { id: 'out_2', name: 'c', type: 'output', value: 1 },
+          { id: 'out_3', name: 'd', type: 'output', value: 1 },
+          { id: 'out_4', name: 'e', type: 'output', value: 1 },
+          { id: 'out_5', name: 'f', type: 'output', value: 1 },
+          { id: 'out_6', name: 'g', type: 'output', value: 0 },
+        ];
+        break;
       default:
         inputs = [
           { id: 'in_0', name: 'A', type: 'input', value: 0 },
@@ -655,6 +944,17 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     setSelectedWireId(null);
     setResizingNodeId(nodeId);
     setStartResizeMouse({ x: e.clientX, y: e.clientY });
+    setStartResizeDim({ width: currentWidth, height: currentHeight });
+  };
+
+  const handleResizeTouchStart = (e: React.TouchEvent, nodeId: string, currentWidth: number, currentHeight: number) => {
+    if (e.touches.length !== 1) return;
+    e.stopPropagation();
+    setSelectedNodeId(nodeId);
+    setSelectedWireId(null);
+    setResizingNodeId(nodeId);
+    const touch = e.touches[0];
+    setStartResizeMouse({ x: touch.clientX, y: touch.clientY });
     setStartResizeDim({ width: currentWidth, height: currentHeight });
   };
 
@@ -773,14 +1073,85 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           if (n.id === draggingNodeId) {
             return {
               ...n,
-              x: Math.max(20, Math.round((e.clientX - dragOffset.x) / 10) * 10),
-              y: Math.max(20, Math.round((e.clientY - dragOffset.y) / 10) * 10),
+              x: Math.max(20, Math.round((coords.x - dragOffset.x) / 10) * 10),
+              y: Math.max(20, Math.round((coords.y - dragOffset.y) / 10) * 10),
             };
           }
           return n;
         }),
       }));
     }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const coords = getCanvasCoords(touch.clientX, touch.clientY);
+      setMousePos(coords);
+
+      if (e.target === svgRef.current) {
+        setIsPanning(true);
+        setStartPanMouse({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+      }
+    } else if (e.touches.length === 2) {
+      setDraggingNodeId(null);
+      setIsPanning(true);
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const midX = (touch1.clientX + touch2.clientX) / 2;
+      const midY = (touch1.clientY + touch2.clientY) / 2;
+      setStartPanMouse({ x: midX - pan.x, y: midY - pan.y });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const coords = getCanvasCoords(touch.clientX, touch.clientY);
+      setMousePos(coords);
+
+      if (resizingNodeId) {
+        const dx = (touch.clientX - startResizeMouse.x) / zoom;
+        const dy = (touch.clientY - startResizeMouse.y) / zoom;
+        const newWidth = Math.max(140, Math.min(800, Math.round((startResizeDim.width + dx) / 5) * 5));
+        const newHeight = Math.max(80, Math.min(600, Math.round((startResizeDim.height + dy) / 5) * 5));
+
+        setCircuit(prev => ({
+          ...prev,
+          nodes: prev.nodes.map(n => n.id === resizingNodeId ? { ...n, width: newWidth, height: newHeight } : n),
+        }));
+        return;
+      }
+
+      if (draggingNodeId) {
+        setCircuit(prev => ({
+          ...prev,
+          nodes: prev.nodes.map(n => {
+            if (n.id === draggingNodeId) {
+              return {
+                ...n,
+                x: Math.max(20, Math.round((coords.x - dragOffset.x) / 10) * 10),
+                y: Math.max(20, Math.round((coords.y - dragOffset.y) / 10) * 10),
+              };
+            }
+            return n;
+          }),
+        }));
+        return;
+      }
+
+      if (isPanning) {
+        setPan({
+          x: touch.clientX - startPanMouse.x,
+          y: touch.clientY - startPanMouse.y,
+        });
+        return;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    handleMouseUp();
   };
 
   const handleMouseUp = () => {
@@ -819,10 +1190,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     const node = circuit.nodes.find(n => n.id === nodeId);
     if (!node) return;
 
+    const coords = getCanvasCoords(e.clientX, e.clientY);
     setDraggingNodeId(nodeId);
     setDragOffset({
-      x: e.clientX - node.x,
-      y: e.clientY - node.y,
+      x: coords.x - node.x,
+      y: coords.y - node.y,
+    });
+  };
+
+  const handleNodeTouchStart = (e: React.TouchEvent, nodeId: string) => {
+    if (e.touches.length !== 1) return;
+    e.stopPropagation();
+    setSelectedNodeId(nodeId);
+    setSelectedWireId(null);
+    const node = circuit.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch.clientX, touch.clientY);
+    setDraggingNodeId(nodeId);
+    setDragOffset({
+      x: coords.x - node.x,
+      y: coords.y - node.y,
     });
   };
 
@@ -972,6 +1361,23 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           </div>
         )}
 
+        {/* User-Controlled Properties Panel Toggle Button */}
+        {(selectedNode || (selectedWireId && selectedWire)) && (
+          <button
+            onClick={() => setShowPropertiesPanel(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+              showPropertiesPanel
+                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-1 ring-amber-300'
+                : 'bg-slate-800 text-amber-400 border-amber-500/40 hover:bg-slate-750'
+            }`}
+            title="Toggle Component / Wire Properties Panel"
+          >
+            <Sliders className="h-3.5 w-3.5" />
+            <span>Properties</span>
+            {showPropertiesPanel && <span className="text-[10px] bg-slate-950/40 text-amber-200 px-1 rounded">Open</span>}
+          </button>
+        )}
+
         {/* Center: Tools (Select, Wire, Undo, Redo, Zoom) */}
         <div className="flex items-center gap-1">
           <button
@@ -998,27 +1404,174 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             <Cable className="h-4 w-4" />
           </button>
 
-          {/* Wire Crossing (Jump / Crossover) Toggle */}
-          <button
-            onClick={() => {
-              setWireJumpsEnabled(prev => !prev);
-              setToastMessage(`Wire Crossover Jumps: ${!wireJumpsEnabled ? 'Enabled' : 'Disabled'}`);
-            }}
-            title={`Wire Crossing (Jump / Crossover): ${wireJumpsEnabled ? 'ON' : 'OFF'} (Click to toggle)`}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
-              wireJumpsEnabled
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                : 'text-slate-400 hover:bg-slate-800 border-slate-700/60'
-            }`}
-          >
-            <span className="text-sm font-bold leading-none select-none">⌒</span>
-            <span className="hidden md:inline">Jump</span>
-            <span className={`text-[9px] px-1 py-0.5 rounded font-mono font-bold ${
-              wireJumpsEnabled ? 'bg-amber-400/20 text-amber-200' : 'bg-slate-700 text-slate-400'
-            }`}>
-              {wireJumpsEnabled ? 'ON' : 'OFF'}
-            </span>
-          </button>
+          {/* Wire Crossing (Jump / Crossover) Toggle & Customizer */}
+          <div className="relative flex items-center">
+            <button
+              onClick={() => {
+                setWireJumpsEnabled(prev => !prev);
+                setToastMessage(`Wire Crossover Jumps: ${!wireJumpsEnabled ? 'Enabled' : 'Disabled'}`);
+              }}
+              title={`Wire Crossing (Jump / Crossover): ${wireJumpsEnabled ? 'ON' : 'OFF'} (Click to toggle)`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-l-lg text-xs font-semibold transition-all border ${
+                wireJumpsEnabled
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-800 border-slate-700/60'
+              }`}
+            >
+              <span className="text-sm font-bold leading-none select-none">⌒</span>
+              <span className="hidden md:inline">Jump</span>
+              <span className={`text-[9px] px-1 py-0.5 rounded font-mono font-bold ${
+                wireJumpsEnabled ? 'bg-amber-400/20 text-amber-200' : 'bg-slate-700 text-slate-400'
+              }`}>
+                {wireJumpsEnabled ? 'ON' : 'OFF'}
+              </span>
+            </button>
+            <button
+              onClick={() => setShowJumpSettings(s => !s)}
+              title="Adjust Jump Bridge Size & Length"
+              className={`px-1.5 py-1 rounded-r-lg text-xs font-bold transition-all border-y border-r ${
+                wireJumpsEnabled
+                  ? 'bg-amber-500/30 text-amber-200 border-amber-500/40 hover:bg-amber-500/40'
+                  : 'text-slate-500 hover:bg-slate-800 border-slate-700/60'
+              }`}
+            >
+              ⚙
+            </button>
+
+            {/* Jump Bridge Dimensions Customizer Popover */}
+            {showJumpSettings && (
+              <div 
+                className="absolute top-9 left-0 z-50 bg-slate-900/98 border border-amber-500/60 rounded-xl shadow-2xl p-3.5 min-w-[270px] backdrop-blur-md animate-in fade-in zoom-in-95"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-amber-400">
+                    <span className="text-base font-mono leading-none">⌒</span>
+                    <span>Bridge Size & Length</span>
+                  </div>
+                  <button 
+                    onClick={() => setShowJumpSettings(false)}
+                    className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-slate-800"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Live Mini Preview */}
+                <div className="h-12 bg-slate-950/80 rounded-lg border border-slate-800 flex items-center justify-center mb-2.5 relative overflow-hidden">
+                  <svg width="160" height="40" viewBox="0 0 160 40" className="overflow-visible">
+                    <line x1="15" y1="20" x2="145" y2="20" stroke="#64748b" strokeWidth="2.5" />
+                    <line x1="80" y1="5" x2="80" y2="35" stroke="#10b981" strokeWidth="2.5" />
+                    <circle cx="80" cy="20" r={Math.max(4, Math.min(jumpBridgeSpan, jumpBridgeSize) - 1.5)} fill="#020617" stroke="#1e293b" strokeWidth="1" />
+                    {(() => {
+                      const { arcPath } = getJumpArcPath(80, 20, Math.PI / 2, { height: jumpBridgeSize, span: jumpBridgeSpan });
+                      return (
+                        <>
+                          <path d={arcPath} fill="none" stroke="#10b981" strokeWidth="6" strokeOpacity="0.4" strokeLinecap="round" />
+                          <path d={arcPath} fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" />
+                        </>
+                      );
+                    })()}
+                  </svg>
+                </div>
+
+                {/* Height / Size Slider */}
+                <div className="space-y-1 mb-2.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-300 font-semibold text-[11px]">Arch Height (Size):</span>
+                    <span className="font-mono text-amber-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded text-[10px]">
+                      {jumpBridgeSize}px
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => setJumpBridgeSize(s => Math.max(4, s - 1))}
+                      className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center border border-slate-700"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="range"
+                      min="4"
+                      max="22"
+                      step="1"
+                      value={jumpBridgeSize}
+                      onChange={e => setJumpBridgeSize(Number(e.target.value))}
+                      className="flex-1 accent-amber-500 cursor-pointer h-1.5"
+                    />
+                    <button 
+                      onClick={() => setJumpBridgeSize(s => Math.min(22, s + 1))}
+                      className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center border border-slate-700"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Span / Length Slider */}
+                <div className="space-y-1 mb-2.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-300 font-semibold text-[11px]">Bridge Length (Span):</span>
+                    <span className="font-mono text-cyan-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded text-[10px]">
+                      {jumpBridgeSpan * 2}px
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => setJumpBridgeSpan(s => Math.max(6, s - 1))}
+                      className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center border border-slate-700"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="range"
+                      min="6"
+                      max="26"
+                      step="1"
+                      value={jumpBridgeSpan}
+                      onChange={e => setJumpBridgeSpan(Number(e.target.value))}
+                      className="flex-1 accent-cyan-500 cursor-pointer h-1.5"
+                    />
+                    <button 
+                      onClick={() => setJumpBridgeSpan(s => Math.min(26, s + 1))}
+                      className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center border border-slate-700"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Presets */}
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="text-[9px] text-slate-400 font-bold uppercase mb-1">Presets:</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[
+                      { name: 'Small', h: 6, s: 7 },
+                      { name: 'Normal', h: 8, s: 10 },
+                      { name: 'Wide', h: 12, s: 15 },
+                      { name: 'Large', h: 16, s: 20 },
+                    ].map(p => (
+                      <button
+                        key={p.name}
+                        onClick={() => {
+                          setJumpBridgeSize(p.h);
+                          setJumpBridgeSpan(p.s);
+                          setToastMessage(`Jump Bridge: ${p.name}`);
+                        }}
+                        className={`px-1 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                          jumpBridgeSize === p.h && jumpBridgeSpan === p.s
+                            ? 'bg-amber-500 text-slate-950 border-amber-400'
+                            : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="h-4 w-[1px] bg-slate-800 mx-1" />
 
@@ -1118,120 +1671,195 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       {/* Main Workspace: Left Palette + Canvas + Right Inspector */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Component Palette (Left Panel) */}
-        <div className="w-60 border-r border-slate-800 bg-slate-900/95 p-3 overflow-y-auto space-y-4 shrink-0 hidden md:block z-10 shadow-xl">
-          {/* Annotations & Notes */}
-          <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Documentation & Notes</span>
-              <span className="text-[9px] text-amber-500 font-bold">Resizable</span>
-            </h4>
-            <div className="grid grid-cols-1 gap-1.5">
+        <div className="w-64 border-r border-slate-800 bg-slate-900/95 p-3 overflow-y-auto space-y-4 shrink-0 hidden md:block z-10 shadow-xl">
+          {/* Search & Filter Component Palette */}
+          <div className="relative">
+            <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={paletteSearch}
+              onChange={e => setPaletteSearch(e.target.value)}
+              placeholder="Search components..."
+              className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-200 border border-slate-700/80 focus:border-cyan-500 focus:outline-none placeholder:text-slate-500"
+            />
+            {paletteSearch && (
               <button
-                onClick={() => addComponent('COMMENT')}
-                className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all hover:border-amber-400"
+                onClick={() => setPaletteSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
               >
-                <div className="w-6 h-6 rounded bg-amber-500/30 border border-amber-400 flex items-center justify-center text-amber-300">
-                  <FileText className="h-3.5 w-3.5" />
-                </div>
-                <div className="text-left">
-                  <div className="text-white font-bold leading-tight">Comment Box</div>
-                  <div className="text-[9px] text-slate-400 leading-tight">Drag to move & resize</div>
-                </div>
+                <X className="h-3 w-3" />
               </button>
-            </div>
+            )}
           </div>
 
-          <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Inputs & Clock</span>
-              <span className="text-[9px] text-slate-600">Signal Sources</span>
-            </h4>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={() => addComponent('SWITCH')}
-                className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-medium transition-all hover:border-emerald-500/50"
-              >
-                <div className="w-5 h-3 rounded-full bg-emerald-500/40 border border-emerald-400 flex items-center px-0.5">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                </div>
-                <div className="text-left">
-                  <div className="text-white font-bold leading-tight">Switch</div>
-                  <div className="text-[9px] text-slate-400 leading-tight">Toggle Input</div>
-                </div>
-              </button>
+          {/* Component Categories */}
+          {(() => {
+            const q = paletteSearch.toLowerCase().trim();
+            const matches = (type: string, label: string, sub: string) => {
+              if (!q) return true;
+              return type.toLowerCase().includes(q) || label.toLowerCase().includes(q) || sub.toLowerCase().includes(q);
+            };
 
-              <button
-                onClick={() => addComponent('CLOCK')}
-                className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-medium transition-all hover:border-cyan-500/50"
-              >
-                <div className="w-5 h-3 rounded bg-cyan-500/30 border border-cyan-400 flex items-center justify-center font-mono text-[8px] text-cyan-300 font-bold">
-                  ~
-                </div>
-                <div className="text-left">
-                  <div className="text-white font-bold leading-tight">Clock</div>
-                  <div className="text-[9px] text-slate-400 leading-tight">Pulse Generator</div>
-                </div>
-              </button>
-            </div>
-          </div>
+            const sections = [
+              {
+                title: 'Documentation & Notes',
+                badge: 'Resizable',
+                badgeColor: 'text-amber-400',
+                items: [
+                  { type: 'COMMENT' as GateType, label: 'Comment Box', sub: 'Drag & resize note' },
+                ],
+              },
+              {
+                title: 'Inputs & Power Sources',
+                badge: 'Signals',
+                badgeColor: 'text-emerald-400',
+                items: [
+                  { type: 'SWITCH' as GateType, label: 'Switch', sub: '0 / 1 Toggle' },
+                  { type: 'PUSH_BUTTON' as GateType, label: 'Push Button', sub: 'Tactile Click' },
+                  { type: 'CLOCK' as GateType, label: 'Clock', sub: '1 Hz Pulse' },
+                  { type: 'CONST_HIGH' as GateType, label: '+5V (VCC)', sub: 'Constant 1' },
+                  { type: 'CONST_LOW' as GateType, label: 'GND (0V)', sub: 'Constant 0' },
+                ],
+              },
+              {
+                title: 'Standard Logic Gates',
+                badge: 'IEEE',
+                badgeColor: 'text-cyan-400',
+                items: [
+                  { type: 'AND' as GateType, label: 'AND', sub: '2-Input' },
+                  { type: 'OR' as GateType, label: 'OR', sub: '2-Input' },
+                  { type: 'NOT' as GateType, label: 'NOT', sub: 'Inverter' },
+                  { type: 'NAND' as GateType, label: 'NAND', sub: '2-Input' },
+                  { type: 'NOR' as GateType, label: 'NOR', sub: '2-Input' },
+                  { type: 'XOR' as GateType, label: 'XOR', sub: '2-Input' },
+                  { type: 'XNOR' as GateType, label: 'XNOR', sub: '2-Input' },
+                  { type: 'BUFFER' as GateType, label: 'Buffer', sub: 'Driver' },
+                  { type: 'AND3' as GateType, label: 'AND-3', sub: '3-Input' },
+                  { type: 'OR3' as GateType, label: 'OR-3', sub: '3-Input' },
+                  { type: 'NAND3' as GateType, label: 'NAND-3', sub: '3-Input' },
+                  { type: 'TRI_STATE' as GateType, label: 'Tri-State', sub: 'w/ Enable' },
+                ],
+              },
+              {
+                title: 'Arithmetic Circuits',
+                badge: 'MSI',
+                badgeColor: 'text-sky-400',
+                items: [
+                  { type: 'HALF_ADDER' as GateType, label: 'Half Adder', sub: 'A, B -> S, C' },
+                  { type: 'FULL_ADDER' as GateType, label: 'Full Adder', sub: 'A, B, Cin' },
+                  { type: 'HALF_SUB' as GateType, label: 'Half Sub', sub: 'A, B -> D, B' },
+                  { type: 'FULL_SUB' as GateType, label: 'Full Sub', sub: 'A, B, Bin' },
+                  { type: 'MAG_COMP_2BIT' as GateType, label: 'Comparator', sub: 'A>B, =, <' },
+                ],
+              },
+              {
+                title: 'Multiplexers & Decoders',
+                badge: 'Routing',
+                badgeColor: 'text-teal-400',
+                items: [
+                  { type: 'MUX_2TO1' as GateType, label: '2:1 MUX', sub: '2 Data, 1 Sel' },
+                  { type: 'MUX_4TO1' as GateType, label: '4:1 MUX', sub: '4 Data, 2 Sel' },
+                  { type: 'DEMUX_1TO2' as GateType, label: '1:2 DEMUX', sub: '1-to-2 Switch' },
+                  { type: 'DEMUX_1TO4' as GateType, label: '1:4 DEMUX', sub: '1-to-4 Switch' },
+                  { type: 'DECODER_2TO4' as GateType, label: '2:4 Decoder', sub: 'Active-High' },
+                  { type: 'PRIORITY_ENC_4TO2' as GateType, label: 'Priority Enc', sub: '4:2 w/ Valid' },
+                ],
+              },
+              {
+                title: 'Sequential & Counters',
+                badge: 'Clocked',
+                badgeColor: 'text-purple-400',
+                items: [
+                  { type: 'D_FF' as GateType, label: 'D Flip-Flop', sub: 'Data Latch' },
+                  { type: 'JK_FF' as GateType, label: 'JK Flip-Flop', sub: 'Universal' },
+                  { type: 'T_FF' as GateType, label: 'T Flip-Flop', sub: 'Toggle Latch' },
+                  { type: 'SR_FF' as GateType, label: 'SR Flip-Flop', sub: 'Set / Reset' },
+                  { type: 'COUNTER_4BIT' as GateType, label: '4-Bit Counter', sub: '0-15 Binary' },
+                  { type: 'SHIFT_REG_4BIT' as GateType, label: 'Shift Register', sub: '4-Bit SIPO' },
+                ],
+              },
+              {
+                title: 'Displays & Probes',
+                badge: 'Output',
+                badgeColor: 'text-rose-400',
+                items: [
+                  { type: 'LED' as GateType, label: 'LED Lamp', sub: 'Logic Probe' },
+                  { type: 'PROBE' as GateType, label: 'Digital Probe', sub: '0 / 1 / Z Readout' },
+                  { type: 'SEVEN_SEG' as GateType, label: '7-Segment LED', sub: 'a..g Numerals' },
+                  { type: 'BCD_TO_7SEG' as GateType, label: 'BCD to 7-Seg', sub: '4-Bit Decoder' },
+                ],
+              },
+            ];
 
-          <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Standard Logic Gates</span>
-              <span className="text-[9px] text-slate-600">IEEE Symbols</span>
-            </h4>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER'] as GateType[]).map(gate => (
-                <button
-                  key={gate}
-                  onClick={() => addComponent(gate)}
-                  className="flex items-center gap-2 py-2 px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-slate-200 border border-slate-700/80 text-xs font-bold transition-all hover:border-cyan-400/50 group"
-                >
-                  <svg width="24" height="18" viewBox="0 0 36 28" className="shrink-0 text-cyan-400 group-hover:scale-110 transition-transform">
-                    <MiniGateIcon type={gate} />
-                  </svg>
-                  <span>{gate}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+            const renderedSections = sections
+              .map(sec => ({
+                ...sec,
+                filteredItems: sec.items.filter(item => matches(item.type, item.label, item.sub)),
+              }))
+              .filter(sec => sec.filteredItems.length > 0);
 
-          <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Flip-Flops & Storage</span>
-              <span className="text-[9px] text-slate-600">Sequential</span>
-            </h4>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(['D_FF', 'JK_FF', 'T_FF', 'SR_FF'] as GateType[]).map(ff => (
-                <button
-                  key={ff}
-                  onClick={() => addComponent(ff)}
-                  className="flex items-center justify-center py-2 px-1 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-purple-300 border border-slate-700/80 text-xs font-bold transition-all hover:border-purple-400/50"
-                >
-                  {ff.replace('_FF', ' FF')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Output Probes</span>
-              <span className="text-[9px] text-slate-600">Display</span>
-            </h4>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={() => addComponent('LED')}
-                className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-medium transition-all hover:border-emerald-500/50"
-              >
-                <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 shrink-0" />
-                <div className="text-left">
-                  <div className="text-white font-bold leading-tight">LED</div>
-                  <div className="text-[9px] text-slate-400 leading-tight">Probe</div>
+            if (renderedSections.length === 0) {
+              return (
+                <div className="py-8 text-center text-slate-500 text-xs">
+                  No components matching &quot;{paletteSearch}&quot;
                 </div>
-              </button>
-            </div>
-          </div>
+              );
+            }
+
+            return renderedSections.map(sec => (
+              <div key={sec.title} className="space-y-1.5">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>{sec.title}</span>
+                  <span className={`text-[9px] font-bold ${sec.badgeColor}`}>{sec.badge}</span>
+                </h4>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {sec.filteredItems.map(item => {
+                    const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'TRI_STATE'].includes(item.type);
+                    return (
+                      <button
+                        key={item.type}
+                        onClick={() => addComponent(item.type)}
+                        title={`Add ${item.label} to circuit canvas`}
+                        className="flex flex-col items-start p-2 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-slate-200 border border-slate-700/80 text-xs font-semibold transition-all hover:border-cyan-400/50 group text-left"
+                      >
+                        <div className="flex items-center gap-1.5 w-full mb-0.5">
+                          {isGate ? (
+                            <svg width="18" height="14" viewBox="0 0 36 28" className="shrink-0 text-cyan-400 group-hover:scale-110 transition-transform">
+                              <MiniGateIcon type={item.type} />
+                            </svg>
+                          ) : item.type === 'COMMENT' ? (
+                            <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                          ) : item.type === 'LED' ? (
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 shrink-0" />
+                          ) : item.type === 'SEVEN_SEG' ? (
+                            <div className="w-2.5 h-3.5 rounded-sm border border-rose-500 bg-rose-500/20 text-[7px] flex items-center justify-center text-rose-300 font-bold shrink-0">
+                              8
+                            </div>
+                          ) : item.type === 'CLOCK' ? (
+                            <div className="text-[10px] font-mono text-cyan-400 shrink-0">~</div>
+                          ) : item.type === 'SWITCH' || item.type === 'PUSH_BUTTON' ? (
+                            <div className="w-3 h-2 rounded bg-emerald-500/40 border border-emerald-400 shrink-0" />
+                          ) : item.type === 'CONST_HIGH' ? (
+                            <span className="text-[9px] font-bold text-emerald-400 font-mono shrink-0">1</span>
+                          ) : item.type === 'CONST_LOW' ? (
+                            <span className="text-[9px] font-bold text-slate-400 font-mono shrink-0">0</span>
+                          ) : (
+                            <div className="w-2 h-2 rounded-sm bg-cyan-500/40 border border-cyan-400/60 shrink-0" />
+                          )}
+                          <span className="truncate text-white font-bold text-[11px] leading-tight">
+                            {item.label}
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate w-full leading-none font-normal">
+                          {item.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()}
 
           {/* Sample Preset Circuits */}
           <div className="pt-2 border-t border-slate-800">
@@ -1254,10 +1882,14 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
         {/* Central SVG Interactive Canvas */}
         <div 
-          className="flex-1 relative h-full circuit-grid overflow-hidden select-none"
+          className="flex-1 relative h-full circuit-grid overflow-hidden select-none touch-none"
+          style={{ touchAction: 'none' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           onClick={handleCanvasClick}
         >
           {/* Diagnostic Warnings Banner */}
@@ -1292,112 +1924,6 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               </button>
             </div>
           )}
-
-          {/* Wire Color Plate Floating Popover on Wire Click */}
-          {selectedWireId && !selectedNodeId && !wireStart && (() => {
-            const activeWire = circuit.wires.find(w => w.id === selectedWireId);
-            if (!activeWire) return null;
-
-            const fromNode = circuit.nodes.find(n => n.id === activeWire.fromNodeId);
-            const toNode = circuit.nodes.find(n => n.id === activeWire.toNodeId);
-            if (!fromNode || !toNode) return null;
-
-            const p1 = getPortCoordinates(fromNode, activeWire.fromPortIndex, 'output');
-            const p2 = getPortCoordinates(toNode, activeWire.toPortIndex, 'input');
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-            const screenX = midX * zoom + pan.x;
-            const screenY = midY * zoom + pan.y;
-
-            return (
-              <div 
-                className="absolute z-40 -translate-x-1/2 -translate-y-full mb-3 pointer-events-auto"
-                style={{
-                  left: `max(160px, min(calc(100% - 160px), ${screenX}px))`,
-                  top: `max(60px, ${screenY - 14}px)`,
-                }}
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="bg-slate-900/95 border-2 border-amber-500/80 rounded-xl shadow-2xl p-3 backdrop-blur-md flex flex-col gap-2 min-w-[290px] animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                      <Palette className="h-3.5 w-3.5" />
-                      <span>Wire Color Plate</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                        {activeWire.value === 1 ? 'HIGH (1)' : activeWire.value === 0 ? 'LOW (0)' : 'State: ?'}
-                      </span>
-                      <button 
-                        onClick={() => setSelectedWireId(null)}
-                        className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-slate-800 transition-colors"
-                        title="Close Color Plate"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 justify-between py-1">
-                    {WIRE_COLORS.map(wc => {
-                      const isCurrent = (activeWire.color || '') === wc.value;
-                      return (
-                        <button
-                          key={wc.name}
-                          onClick={() => {
-                            pushHistory({
-                              ...circuit,
-                              wires: circuit.wires.map(w => w.id === activeWire.id ? { ...w, color: wc.value || undefined } : w),
-                            });
-                            setToastMessage(`Wire color changed to ${wc.name}`);
-                          }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-125 shadow-md relative ${
-                            isCurrent ? 'ring-2 ring-white scale-110' : 'hover:ring-1 hover:ring-slate-400 ring-1 ring-slate-700/60'
-                          }`}
-                          style={{
-                            backgroundColor: wc.value || '#475569',
-                          }}
-                          title={wc.name}
-                        >
-                          {isCurrent && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-800 text-[11px]">
-                    <button
-                      onClick={() => {
-                        pushHistory({
-                          ...circuit,
-                          wires: circuit.wires.map(w => w.id === activeWire.id ? { ...w, color: undefined } : w),
-                        });
-                        setToastMessage('Wire color reset to Auto (State Color)');
-                      }}
-                      className="text-slate-400 hover:text-emerald-400 transition-colors font-medium"
-                    >
-                      Reset to Auto
-                    </button>
-                    <button
-                      onClick={() => {
-                        pushHistory({
-                          ...circuit,
-                          wires: circuit.wires.filter(w => w.id !== activeWire.id),
-                        });
-                        setSelectedWireId(null);
-                        setToastMessage('Wire deleted.');
-                      }}
-                      className="text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors font-medium"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                      <span>Delete Wire</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
 
           {/* Main SVG Render Surface */}
           <svg
@@ -1525,7 +2051,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 glowColor = isHigh ? '#10b981' : '#eab308';
               }
 
-              const { arcPath, maskCircle } = getJumpArcPath(jump.x, jump.y, jump.jumpAngle, 8);
+              const { arcPath, maskCircle } = getJumpArcPath(jump.x, jump.y, jump.jumpAngle, { height: jumpBridgeSize, span: jumpBridgeSpan });
 
               return (
                 <g 
@@ -1636,10 +2162,21 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             {simResult.nodes.map(node => {
               const isSelected = selectedNodeId === node.id;
               const isComment = node.type === 'COMMENT';
-              const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER'].includes(node.type);
+              const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'TRI_STATE'].includes(node.type);
               const isSwitch = node.type === 'SWITCH' || node.type === 'CLOCK';
+              const isPushButton = node.type === 'PUSH_BUTTON';
+              const isConst = node.type === 'CONST_HIGH' || node.type === 'CONST_LOW';
+              const isProbe = node.type === 'PROBE';
+              const isSevenSeg = node.type === 'SEVEN_SEG';
+              const isCounter = node.type === 'COUNTER_4BIT';
+              const isShiftReg = node.type === 'SHIFT_REG_4BIT';
               const isLed = node.type === 'LED';
               const isFF = node.type.endsWith('_FF');
+              const isMsi = [
+                'HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB',
+                'MUX_2TO1', 'MUX_4TO1', 'DEMUX_1TO2', 'DEMUX_1TO4',
+                'DECODER_2TO4', 'PRIORITY_ENC_4TO2', 'MAG_COMP_2BIT', 'BCD_TO_7SEG'
+              ].includes(node.type);
               const { width, height } = getNodeDimensions(node);
 
               return (
@@ -1647,6 +2184,8 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   key={node.id}
                   transform={`translate(${node.x}, ${node.y})`}
                   onMouseDown={e => handleNodeDragStart(e, node.id)}
+                  onTouchStart={e => handleNodeTouchStart(e, node.id)}
+                  style={{ touchAction: 'none' }}
                   className="cursor-move group"
                 >
                   {/* Comment Box / Note Annotation Rendering */}
@@ -1710,7 +2249,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                         transform={`translate(${width - 16}, ${height - 16})`}
                         className="cursor-se-resize"
                         onMouseDown={e => handleResizeMouseDown(e, node.id, width, height)}
+                        onTouchStart={e => handleResizeTouchStart(e, node.id, width, height)}
                         onClick={e => e.stopPropagation()}
+                        style={{ touchAction: 'none' }}
                       >
                         {/* Invisible large touch hit area */}
                         <rect
@@ -1764,7 +2305,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                         />
                       )}
 
-                      {/* Interactive Switch Widget */}
+                      {/* Interactive Switch / Clock Widget */}
                       {isSwitch && (
                         <g
                           onClick={e => {
@@ -1799,6 +2340,233 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                             textAnchor="middle"
                           >
                             {node.state?.highValue ? '1 (HIGH)' : '0 (LOW)'}
+                          </text>
+                        </g>
+                      )}
+
+                      {/* Interactive Push Button Widget */}
+                      {isPushButton && (
+                        <g
+                          onClick={e => {
+                            e.stopPropagation();
+                            toggleSwitch(node.id);
+                          }}
+                          className="cursor-pointer group"
+                        >
+                          <circle
+                            cx={width / 2}
+                            cy="38"
+                            r="18"
+                            fill="#0f172a"
+                            stroke={node.state?.highValue ? '#10b981' : '#475569'}
+                            strokeWidth="2.5"
+                          />
+                          <circle
+                            cx={width / 2}
+                            cy="38"
+                            r={node.state?.highValue ? '13' : '15'}
+                            fill={node.state?.highValue ? '#10b981' : '#334155'}
+                            filter={node.state?.highValue ? 'drop-shadow(0 0 8px #10b981)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'}
+                            className="transition-all"
+                          />
+                          <text
+                            x={width / 2}
+                            y="67"
+                            fill={node.state?.highValue ? '#10b981' : '#94a3b8'}
+                            fontSize="9"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {node.state?.highValue ? 'PRESS (1)' : 'PRESS (0)'}
+                          </text>
+                        </g>
+                      )}
+
+                      {/* Constant Power (+5V) or Ground (GND) Source */}
+                      {isConst && (
+                        <g className="select-none">
+                          {node.type === 'CONST_HIGH' ? (
+                            <>
+                              <circle cx={width / 2} cy="36" r="14" fill="#10b98120" stroke="#10b981" strokeWidth="2" />
+                              <path d={`M ${width / 2} 27 L ${width / 2} 45 M ${width / 2 - 9} 36 L ${width / 2 + 9} 36`} stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+                              <text x={width / 2} y="65" fill="#10b981" fontSize="9.5" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                                +5V (1)
+                              </text>
+                            </>
+                          ) : (
+                            <>
+                              <circle cx={width / 2} cy="34" r="14" fill="#64748b20" stroke="#64748b" strokeWidth="2" />
+                              <line x1={width / 2 - 9} y1="31" x2={width / 2 + 9} y2="31" stroke="#94a3b8" strokeWidth="2.5" />
+                              <line x1={width / 2 - 6} y1="36" x2={width / 2 + 6} y2="36" stroke="#94a3b8" strokeWidth="2" />
+                              <line x1={width / 2 - 3} y1="41" x2={width / 2 + 3} y2="41" stroke="#94a3b8" strokeWidth="1.5" />
+                              <text x={width / 2} y="65" fill="#94a3b8" fontSize="9.5" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                                GND (0)
+                              </text>
+                            </>
+                          )}
+                        </g>
+                      )}
+
+                      {/* Digital Logic Probe */}
+                      {isProbe && (() => {
+                        const pVal = node.inputs[0]?.value;
+                        const isHigh = pVal === 1;
+                        const isLow = pVal === 0;
+                        const isZ = pVal === 'Z';
+                        const valColor = isHigh ? '#10b981' : isLow ? '#64748b' : isZ ? '#38bdf8' : '#eab308';
+                        const valText = isHigh ? '1' : isLow ? '0' : isZ ? 'Z' : '?';
+
+                        return (
+                          <g className="select-none">
+                            <rect x="22" y="24" width="52" height="34" rx="6" fill="#020617" stroke={valColor} strokeWidth="2" />
+                            <text
+                              x="48"
+                              y="48"
+                              fill={valColor}
+                              fontSize="20"
+                              fontWeight="bold"
+                              fontFamily="monospace"
+                              textAnchor="middle"
+                              filter={isHigh ? 'drop-shadow(0 0 6px #10b981)' : undefined}
+                            >
+                              {valText}
+                            </text>
+                            <text x="48" y="68" fill={valColor} fontSize="8" fontWeight="bold" textAnchor="middle">
+                              {isHigh ? 'HIGH' : isLow ? 'LOW' : isZ ? 'HI-Z' : 'FLOAT'}
+                            </text>
+                          </g>
+                        );
+                      })()}
+
+                      {/* 7-Segment LED Display Module */}
+                      {isSevenSeg && (() => {
+                        const segA = node.inputs[0]?.value === 1;
+                        const segB = node.inputs[1]?.value === 1;
+                        const segC = node.inputs[2]?.value === 1;
+                        const segD = node.inputs[3]?.value === 1;
+                        const segE = node.inputs[4]?.value === 1;
+                        const segF = node.inputs[5]?.value === 1;
+                        const segG = node.inputs[6]?.value === 1;
+
+                        const segPattern = [segA, segB, segC, segD, segE, segF, segG].map(v => v ? '1' : '0').join('');
+                        const DIGIT_MAP: Record<string, string> = {
+                          '1111110': '0',
+                          '0110000': '1',
+                          '1101101': '2',
+                          '1111001': '3',
+                          '0110011': '4',
+                          '1011011': '5',
+                          '1011111': '6',
+                          '1110000': '7',
+                          '1111111': '8',
+                          '1111011': '9',
+                          '1110111': 'A',
+                          '0011111': 'b',
+                          '1001110': 'C',
+                          '0111101': 'd',
+                          '1001111': 'E',
+                          '1000111': 'F',
+                        };
+                        const decodedChar = DIGIT_MAP[segPattern];
+
+                        return (
+                          <g className="select-none">
+                            <rect x="58" y="26" width="60" height="96" rx="6" fill="#020617" stroke="#334155" strokeWidth="1.5" />
+                            {/* Segment a (top) */}
+                            <rect x="70" y="34" width="36" height="6" rx="2" fill={segA ? '#ef4444' : '#33415530'} filter={segA ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Segment b (top right) */}
+                            <rect x="104" y="40" width="6" height="30" rx="2" fill={segB ? '#ef4444' : '#33415530'} filter={segB ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Segment c (bottom right) */}
+                            <rect x="104" y="74" width="6" height="30" rx="2" fill={segC ? '#ef4444' : '#33415530'} filter={segC ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Segment d (bottom) */}
+                            <rect x="70" y="104" width="36" height="6" rx="2" fill={segD ? '#ef4444' : '#33415530'} filter={segD ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Segment e (bottom left) */}
+                            <rect x="66" y="74" width="6" height="30" rx="2" fill={segE ? '#ef4444' : '#33415530'} filter={segE ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Segment f (top left) */}
+                            <rect x="66" y="40" width="6" height="30" rx="2" fill={segF ? '#ef4444' : '#33415530'} filter={segF ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Segment g (center) */}
+                            <rect x="70" y="69" width="36" height="6" rx="2" fill={segG ? '#ef4444' : '#33415530'} filter={segG ? 'drop-shadow(0 0 6px #ef4444)' : undefined} />
+                            {/* Decoded Character Status */}
+                            <text x="88" y="138" fill="#94a3b8" fontSize="9" fontWeight="bold" textAnchor="middle">
+                              {decodedChar ? `NUM: ${decodedChar}` : '7-SEG'}
+                            </text>
+                          </g>
+                        );
+                      })()}
+
+                      {/* 4-Bit Binary Counter Live Readout */}
+                      {isCounter && (() => {
+                        const count = node.state?.counterValue ?? 0;
+                        return (
+                          <g className="select-none">
+                            <rect x={width / 2 - 28} y="26" width="56" height="34" rx="5" fill="#020617" stroke="#3b82f6" strokeWidth="1.5" />
+                            <text x={width / 2} y="49" fill="#60a5fa" fontSize="18" fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+                              {count}
+                            </text>
+                            <text x={width / 2} y="70" fill="#94a3b8" fontSize="8" textAnchor="middle">
+                              HEX: {count.toString(16).toUpperCase()}
+                            </text>
+                            {[0, 1, 2, 3].map(bit => {
+                              const bitVal = (count >> bit) & 1;
+                              return (
+                                <g key={bit} transform={`translate(${width / 2 - 24 + bit * 16}, 84)`}>
+                                  <circle cx="0" cy="0" r="4.5" fill={bitVal ? '#10b981' : '#334155'} filter={bitVal ? 'drop-shadow(0 0 4px #10b981)' : undefined} />
+                                  <text x="0" y="10" fill="#94a3b8" fontSize="6.5" textAnchor="middle">Q{bit}</text>
+                                </g>
+                              );
+                            })}
+                          </g>
+                        );
+                      })()}
+
+                      {/* 4-Bit Shift Register Live Cells */}
+                      {isShiftReg && (
+                        <g className="select-none">
+                          <rect x={width / 2 - 38} y="34" width="76" height="34" rx="4" fill="#020617" stroke="#a855f7" strokeWidth="1.5" />
+                          {[0, 1, 2, 3].map(i => {
+                            const v = node.state?.regValues?.[i] ?? 0;
+                            return (
+                              <g key={i} transform={`translate(${width / 2 - 34 + i * 18}, 37)`}>
+                                <rect width="16" height="28" rx="2" fill={v === 1 ? '#a855f730' : '#1e293b'} stroke={v === 1 ? '#c084fc' : '#334155'} strokeWidth="1" />
+                                <text x="8" y="18" fill={v === 1 ? '#f3e8ff' : '#64748b'} fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="monospace">{v}</text>
+                              </g>
+                            );
+                          })}
+                          <text x={width / 2} y="82" fill="#c084fc" fontSize="8" fontWeight="bold" textAnchor="middle">
+                            [Q0 Q1 Q2 Q3]
+                          </text>
+                        </g>
+                      )}
+
+                      {/* MSI Combinational ICs (Adders, Subtractors, MUX, Decoders, Comparators) */}
+                      {isMsi && (
+                        <g className="select-none pointer-events-none">
+                          <path
+                            d={`M ${width / 2 - 8} 0 A 8 8 0 0 0 ${width / 2 + 8} 0`}
+                            fill="#0f172a"
+                            stroke={isSelected ? '#10b981' : '#475569'}
+                            strokeWidth="1.5"
+                          />
+                          <rect
+                            x={width / 2 - 28}
+                            y={height / 2 - 12}
+                            width="56"
+                            height="24"
+                            rx="4"
+                            fill="#0f172a80"
+                            stroke="#334155"
+                            strokeWidth="1"
+                          />
+                          <text
+                            x={width / 2}
+                            y={height / 2 + 4}
+                            fill="#38bdf8"
+                            fontSize="9"
+                            fontWeight="bold"
+                            fontFamily="monospace"
+                            textAnchor="middle"
+                          >
+                            {node.type.replace('_', ' ')}
                           </text>
                         </g>
                       )}
@@ -1965,270 +2733,294 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           </svg>
         </div>
 
-        {/* Selected Component / Wire Inspector (Right Panel) */}
-        {selectedNode && (
-          <div className="w-64 border-l border-slate-800 bg-slate-900/95 p-4 overflow-y-auto space-y-4 shrink-0 z-10 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                {selectedNode.type === 'COMMENT' ? 'Comment Box' : 'Component Properties'}
-              </h4>
-              <button
-                onClick={() => setSelectedNodeId(null)}
-                className="text-xs text-slate-500 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            {selectedNode.type === 'COMMENT' ? (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-semibold">Title</label>
-                  <input
-                    type="text"
-                    value={selectedNode.label}
-                    onChange={e => {
-                      const newLabel = e.target.value;
-                      setCircuit(prev => ({
-                        ...prev,
-                        nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
-                      }));
-                    }}
-                    className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
-                  />
+        {/* Selected Component / Wire Inspector (Floating Overlay Right Drawer - User Controlled) */}
+        {showPropertiesPanel && (selectedNode || (selectedWireId && selectedWire)) && (
+          <div className="absolute top-0 right-0 bottom-0 z-40 w-72 max-w-[85vw] border-l border-slate-800 bg-slate-900/98 shadow-2xl p-4 overflow-y-auto backdrop-blur-md animate-in slide-in-from-right duration-150 space-y-4">
+            {selectedNode ? (
+              <>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Sliders className="h-3.5 w-3.5 text-amber-400" />
+                    <span>{selectedNode.type === 'COMMENT' ? 'Comment Box' : 'Component Properties'}</span>
+                  </h4>
+                  <button
+                    onClick={() => setShowPropertiesPanel(false)}
+                    className="text-xs text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
+                    title="Close Properties Panel"
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-semibold">Comment Content</label>
-                  <textarea
-                    value={selectedNode.commentText || ''}
-                    onChange={e => {
-                      const newText = e.target.value;
-                      setCircuit(prev => ({
-                        ...prev,
-                        nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, commentText: newText } : n),
-                      }));
-                    }}
-                    rows={4}
-                    placeholder="Type note or explanation here..."
-                    className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none resize-none leading-relaxed"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">Box Color</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {NOTE_COLORS.map(nc => (
-                      <button
-                        key={nc.name}
-                        onClick={() => {
-                          pushHistory({
-                            ...circuit,
-                            nodes: circuit.nodes.map(n => n.id === selectedNode.id ? { ...n, color: nc.value } : n),
-                          });
-                          setToastMessage(`Note color: ${nc.name}`);
-                        }}
-                        className={`h-7 rounded flex items-center justify-center border transition-all ${
-                          selectedNode.color === nc.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-slate-700/60'
-                        }`}
-                        style={{ backgroundColor: nc.value }}
-                        title={nc.name}
-                      >
-                        {selectedNode.color === nc.value && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Box Size Control Quick Presets */}
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">
-                    Dimensions (or drag bottom-right corner)
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { label: 'Compact', w: 160, h: 100 },
-                      { label: 'Medium', w: 220, h: 140 },
-                      { label: 'Large', w: 320, h: 200 }
-                    ].map(sz => (
-                      <button
-                        key={sz.label}
-                        onClick={() => {
+                {selectedNode.type === 'COMMENT' ? (
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold">Title</label>
+                      <input
+                        type="text"
+                        value={selectedNode.label}
+                        onChange={e => {
+                          const newLabel = e.target.value;
                           setCircuit(prev => ({
                             ...prev,
-                            nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, width: sz.w, height: sz.h } : n),
+                            nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
                           }));
-                          setToastMessage(`Note size: ${sz.label}`);
                         }}
-                        className="py-1 rounded bg-slate-800 hover:bg-slate-750 text-[10px] font-bold text-slate-300 border border-slate-700"
-                      >
-                        {sz.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                    <span>Width: {selectedNode.width || 200}px</span>
-                    <span>Height: {selectedNode.height || 130}px</span>
-                  </div>
-                </div>
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
 
-                <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
-                  <button
-                    onClick={duplicateSelected}
-                    className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Duplicate Note</span>
-                  </button>
-                  <button
-                    onClick={deleteSelected}
-                    className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Delete Note</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-semibold">Label</label>
-                  <input
-                    type="text"
-                    value={selectedNode.label}
-                    onChange={e => {
-                      const newLabel = e.target.value;
-                      setCircuit(prev => ({
-                        ...prev,
-                        nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
-                      }));
-                    }}
-                    className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold">Comment Content</label>
+                      <textarea
+                        value={selectedNode.commentText || ''}
+                        onChange={e => {
+                          const newText = e.target.value;
+                          setCircuit(prev => ({
+                            ...prev,
+                            nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, commentText: newText } : n),
+                          }));
+                        }}
+                        rows={4}
+                        placeholder="Type note or explanation here..."
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none resize-none leading-relaxed"
+                      />
+                    </div>
 
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Type:</span>
-                  <span className="font-bold text-emerald-400">{selectedNode.type}</span>
-                </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">Box Color</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {NOTE_COLORS.map(nc => (
+                          <button
+                            key={nc.name}
+                            onClick={() => {
+                              pushHistory({
+                                ...circuit,
+                                nodes: circuit.nodes.map(n => n.id === selectedNode.id ? { ...n, color: nc.value } : n),
+                              });
+                              setToastMessage(`Note color: ${nc.name}`);
+                            }}
+                            className={`h-7 rounded flex items-center justify-center border transition-all ${
+                              selectedNode.color === nc.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-slate-700/60'
+                            }`}
+                            style={{ backgroundColor: nc.value }}
+                            title={nc.name}
+                          >
+                            {selectedNode.color === nc.value && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Coordinates:</span>
-                  <span className="font-mono text-slate-300">X: {selectedNode.x}, Y: {selectedNode.y}</span>
-                </div>
+                    {/* Box Size Control Quick Presets */}
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">
+                        Dimensions (or drag bottom-right corner)
+                      </label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { label: 'Compact', w: 160, h: 100 },
+                          { label: 'Medium', w: 220, h: 140 },
+                          { label: 'Large', w: 320, h: 200 }
+                        ].map(sz => (
+                          <button
+                            key={sz.label}
+                            onClick={() => {
+                              setCircuit(prev => ({
+                                ...prev,
+                                nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, width: sz.w, height: sz.h } : n),
+                              }));
+                              setToastMessage(`Note size: ${sz.label}`);
+                            }}
+                            className="py-1 rounded bg-slate-800 hover:bg-slate-750 text-[10px] font-bold text-slate-300 border border-slate-700"
+                          >
+                            {sz.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                        <span>Width: {selectedNode.width || 200}px</span>
+                        <span>Height: {selectedNode.height || 130}px</span>
+                      </div>
+                    </div>
 
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Ports:</span>
-                  <span className="font-mono text-slate-300">{selectedNode.inputs.length} In / {selectedNode.outputs.length} Out</span>
-                </div>
-
-                <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
-                  <button
-                    onClick={duplicateSelected}
-                    className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Duplicate</span>
-                  </button>
-                  <button
-                    onClick={deleteSelected}
-                    className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Delete Component</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Selected Wire Inspector (When a wire is selected and no node is selected) */}
-        {selectedWireId && !selectedNode && selectedWire && (() => {
-          const fromNode = circuit.nodes.find(n => n.id === selectedWire.fromNodeId);
-          const toNode = circuit.nodes.find(n => n.id === selectedWire.toNodeId);
-
-          return (
-            <div className="w-64 border-l border-slate-800 bg-slate-900/95 p-4 overflow-y-auto space-y-4 shrink-0 z-10 shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Cable className="h-3.5 w-3.5 text-amber-400" />
-                  <span>Wire Properties</span>
-                </h4>
-                <button
-                  onClick={() => setSelectedWireId(null)}
-                  className="text-xs text-slate-500 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>From:</span>
-                  <span className="font-bold text-slate-200">{fromNode?.label || 'Source'}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>To:</span>
-                  <span className="font-bold text-slate-200">{toNode?.label || 'Target'}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Signal State:</span>
-                  <span className={`font-mono font-bold ${selectedWire.value === 1 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                    {selectedWire.value === 1 ? '1 (HIGH)' : '0 (LOW)'}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">Wire Color</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {WIRE_COLORS.map(wc => (
+                    <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
                       <button
-                        key={wc.name}
+                        onClick={duplicateSelected}
+                        className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Duplicate Note</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          deleteSelected();
+                          setShowPropertiesPanel(false);
+                        }}
+                        className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete Note</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold">Label</label>
+                      <input
+                        type="text"
+                        value={selectedNode.label}
+                        onChange={e => {
+                          const newLabel = e.target.value;
+                          setCircuit(prev => ({
+                            ...prev,
+                            nodes: prev.nodes.map(n => n.id === selectedNode.id ? { ...n, label: newLabel } : n),
+                          }));
+                        }}
+                        className="mt-1 w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>Type:</span>
+                      <span className="font-bold text-emerald-400">{selectedNode.type}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>Coordinates:</span>
+                      <span className="font-mono text-slate-300">X: {selectedNode.x}, Y: {selectedNode.y}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>Ports:</span>
+                      <span className="font-mono text-slate-300">{selectedNode.inputs.length} In / {selectedNode.outputs.length} Out</span>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
+                      <button
+                        onClick={duplicateSelected}
+                        className="flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 py-1.5 text-xs font-semibold text-slate-200 transition-colors"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Duplicate</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          deleteSelected();
+                          setShowPropertiesPanel(false);
+                        }}
+                        className="flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete Component</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : selectedWire && (() => {
+              const fromNode = circuit.nodes.find(n => n.id === selectedWire.fromNodeId);
+              const toNode = circuit.nodes.find(n => n.id === selectedWire.toNodeId);
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Cable className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Wire Properties</span>
+                    </h4>
+                    <button
+                      onClick={() => setShowPropertiesPanel(false)}
+                      className="text-xs text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
+                      title="Close Properties Panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>From:</span>
+                      <span className="font-bold text-slate-200">{fromNode?.label || 'Source'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>To:</span>
+                      <span className="font-bold text-slate-200">{toNode?.label || 'Target'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>Signal State:</span>
+                      <span className={`font-mono font-bold ${selectedWire.value === 1 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                        {selectedWire.value === 1 ? '1 (HIGH)' : '0 (LOW)'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-semibold mb-1.5 block">Wire Color</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {WIRE_COLORS.map(wc => (
+                          <button
+                            key={wc.name}
+                            onClick={() => {
+                              pushHistory({
+                                ...circuit,
+                                wires: circuit.wires.map(w => w.id === selectedWire.id ? { ...w, color: wc.value || undefined } : w),
+                              });
+                              setToastMessage(`Wire color: ${wc.name}`);
+                            }}
+                            className={`h-7 rounded flex items-center justify-center border transition-all ${
+                              (selectedWire.color || '') === wc.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-slate-700/60'
+                            }`}
+                            style={{ backgroundColor: wc.value || '#475569' }}
+                            title={wc.name}
+                          >
+                            {(selectedWire.color || '') === wc.value && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[9px] text-slate-500 block mt-1">Select custom color to tag Power (Red), Data (Blue), Clock (Amber), etc.</span>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-800">
+                      <button
                         onClick={() => {
                           pushHistory({
                             ...circuit,
-                            wires: circuit.wires.map(w => w.id === selectedWire.id ? { ...w, color: wc.value || undefined } : w),
+                            wires: circuit.wires.filter(w => w.id !== selectedWire.id),
                           });
-                          setToastMessage(`Wire color: ${wc.name}`);
+                          setSelectedWireId(null);
+                          setShowPropertiesPanel(false);
+                          setToastMessage('Wire deleted.');
                         }}
-                        className={`h-7 rounded flex items-center justify-center border transition-all ${
-                          (selectedWire.color || '') === wc.value ? 'ring-2 ring-white border-transparent scale-105' : 'border-slate-700/60'
-                        }`}
-                        style={{ backgroundColor: wc.value || '#475569' }}
-                        title={wc.name}
+                        className="w-full flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
                       >
-                        {(selectedWire.color || '') === wc.value && <Check className="h-3.5 w-3.5 text-slate-950 font-bold" />}
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete Wire</span>
                       </button>
-                    ))}
+                    </div>
                   </div>
-                  <span className="text-[9px] text-slate-500 block mt-1">Select custom color to tag Power (Red), Data (Blue), Clock (Amber), etc.</span>
                 </div>
-
-                <div className="pt-3 border-t border-slate-800">
-                  <button
-                    onClick={() => {
-                      pushHistory({
-                        ...circuit,
-                        wires: circuit.wires.filter(w => w.id !== selectedWire.id),
-                      });
-                      setSelectedWireId(null);
-                      setToastMessage('Wire deleted.');
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 py-1.5 text-xs font-semibold transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Delete Wire</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Mobile Component Add Drawer */}
-      <div className="md:hidden flex items-center gap-2 p-2 border-t border-slate-800 bg-slate-900 overflow-x-auto">
+      <div className="md:hidden flex items-center gap-2 p-2 border-t border-slate-800 bg-slate-900 overflow-x-auto shrink-0 z-20">
+        {(selectedNode || (selectedWireId && selectedWire)) && (
+          <button
+            onClick={() => setShowPropertiesPanel(p => !p)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold shrink-0 border transition-all ${
+              showPropertiesPanel
+                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+            }`}
+          >
+            <Sliders className="h-3.5 w-3.5" />
+            <span>{showPropertiesPanel ? 'Hide Props' : 'Properties'}</span>
+          </button>
+        )}
         <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">Add:</span>
         <button
           onClick={() => addComponent('COMMENT')}

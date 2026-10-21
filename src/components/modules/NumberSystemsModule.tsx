@@ -19,8 +19,22 @@ export const NumberSystemsModule: React.FC = () => {
 
   // Radix Converter State
   const [radixInput, setRadixInput] = useState<string>('42');
-  const [fromBase, setFromBase] = useState<2 | 8 | 10 | 16>(10);
-  const conversionRes = convertRadix(radixInput, fromBase);
+  const [fromBase] = useState<2 | 8 | 10 | 16>(10);
+  
+  const cleanInput = radixInput.trim();
+  let effectiveBase: 2 | 8 | 10 | 16 = fromBase;
+  let effectiveInput = cleanInput;
+  if (cleanInput.startsWith('0b') || cleanInput.startsWith('0B')) {
+    effectiveBase = 2;
+    effectiveInput = cleanInput.slice(2);
+  } else if (cleanInput.startsWith('0x') || cleanInput.startsWith('0X')) {
+    effectiveBase = 16;
+    effectiveInput = cleanInput.slice(2);
+  } else if (cleanInput.startsWith('0o') || cleanInput.startsWith('0O')) {
+    effectiveBase = 8;
+    effectiveInput = cleanInput.slice(2);
+  }
+  const conversionRes = convertRadix(effectiveInput, effectiveBase);
 
   // Complements State
   const [complementDecimal, setComplementDecimal] = useState<number>(-5);
@@ -75,8 +89,8 @@ export const NumberSystemsModule: React.FC = () => {
       {activeTab === 'RADIX' && (
         <div className="space-y-6">
           <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-8 space-y-2">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Enter Input Value
                 </label>
@@ -84,25 +98,9 @@ export const NumberSystemsModule: React.FC = () => {
                   type="text"
                   value={radixInput}
                   onChange={e => setRadixInput(e.target.value)}
-                  placeholder="e.g. 101010 or 42 or 2A"
+                  placeholder="e.g. 42 or 0b101010 or 0x2A"
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-base font-mono text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
                 />
-              </div>
-
-              <div className="md:col-span-4 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Select Source Radix (Base)
-                </label>
-                <select
-                  value={fromBase}
-                  onChange={e => setFromBase(parseInt(e.target.value, 10) as any)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-xs font-bold text-emerald-400 focus:border-emerald-500 focus:outline-none cursor-pointer"
-                >
-                  <option value={2}>Base-2 (Binary: 0, 1)</option>
-                  <option value={8}>Base-8 (Octal: 0-7)</option>
-                  <option value={10}>Base-10 (Decimal: 0-9)</option>
-                  <option value={16}>Base-16 (Hexadecimal: 0-9, A-F)</option>
-                </select>
               </div>
             </div>
 

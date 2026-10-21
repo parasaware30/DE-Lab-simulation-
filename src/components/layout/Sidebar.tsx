@@ -54,14 +54,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'CIRCUIT FAMILIES',
       items: [
         { id: 'combinational', label: 'Combinational', icon: Network },
-        { id: 'sequential', label: 'Sequential & Clock', icon: Activity },
       ],
     },
     {
-      title: 'TOOLS & DEMOS',
+      title: 'TOOLS & ARITHMETIC',
       items: [
         { id: 'numbers', label: 'Number Systems', icon: Calculator },
-        { id: 'demos', label: 'Digital Demos', icon: MonitorPlay },
       ],
     },
     {

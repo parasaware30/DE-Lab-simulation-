@@ -91,15 +91,6 @@ export const DashboardModule: React.FC<DashboardProps> = ({
       color: 'from-pink-500/20 to-pink-600/5 text-pink-400 border-pink-500/30',
     },
     {
-      id: 'sequential',
-      title: 'Sequential Circuits & Flip-Flops',
-      desc: 'SR, JK, D, and T Flip-Flops with manual/auto clock pulses, excitation tables, shift registers, counters, and timing waveforms.',
-      icon: Activity,
-      category: 'Sequential',
-      badge: 'Waveforms',
-      color: 'from-indigo-500/20 to-indigo-600/5 text-indigo-400 border-indigo-500/30',
-    },
-    {
       id: 'numbers',
       title: 'Number Systems & Arithmetic',
       desc: 'Binary, Octal, Decimal, Hexadecimal conversions with mathematical steps, 1\'s and 2\'s complement, and binary addition with carry.',
@@ -107,15 +98,6 @@ export const DashboardModule: React.FC<DashboardProps> = ({
       category: 'Arithmetic',
       badge: 'Radix',
       color: 'from-teal-500/20 to-teal-600/5 text-teal-400 border-teal-500/30',
-    },
-    {
-      id: 'demos',
-      title: 'Digital Demonstration Lab',
-      desc: 'Practical digital systems: 7-segment display, traffic light controller, digital password lock, home security alarm, and audio MUX.',
-      icon: MonitorPlay,
-      category: 'Applications',
-      badge: '6 Systems',
-      color: 'from-rose-500/20 to-rose-600/5 text-rose-400 border-rose-500/30',
     },
     {
       id: 'learning',
