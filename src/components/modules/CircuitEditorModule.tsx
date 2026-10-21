@@ -385,6 +385,255 @@ const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
   }
 };
 
+export const ComponentSymbolIcon: React.FC<{ type: GateType; className?: string }> = ({ type, className = "h-5 w-6 shrink-0" }) => {
+  // Logic gates
+  if (['AND', 'AND3', 'AND4', 'OR', 'OR3', 'OR4', 'NOT', 'NAND', 'NAND3', 'NAND4', 'NOR', 'NOR3', 'NOR4', 'XOR', 'XOR3', 'XNOR', 'BUFFER', 'TRI_STATE'].includes(type)) {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 28" className={`${className} text-cyan-400`}>
+        <MiniGateIcon type={type} />
+      </svg>
+    );
+  }
+
+  // Discrete Passives
+  if (type === 'RESISTOR') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-amber-400`}>
+        <path d="M 2 12 L 6 12 L 9 6 L 15 18 L 21 6 L 27 18 L 30 12 L 34 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === 'CAPACITOR') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-cyan-400`}>
+        <path d="M 2 12 L 14 12 M 14 4 L 14 20 M 20 4 L 20 20 M 20 12 L 32 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'INDUCTOR') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-indigo-400`}>
+        <path d="M 2 14 C 4 6 10 6 12 14 C 14 6 20 6 22 14 C 24 6 30 6 32 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'DIODE') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400`}>
+        <path d="M 2 12 L 10 12 M 10 5 L 24 12 L 10 19 Z M 24 5 L 24 19 M 24 12 L 32 12" fill="currentColor" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === 'ZENER_DIODE') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-teal-400`}>
+        <path d="M 2 12 L 10 12 M 10 5 L 24 12 L 10 19 Z" fill="currentColor" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M 28 5 L 24 5 L 24 19 L 20 19 M 24 12 L 32 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'TRANSISTOR_NPN') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 28" className={`${className} text-blue-400`}>
+        <circle cx="18" cy="14" r="12" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.6" />
+        <line x1="12" y1="6" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" />
+        <line x1="2" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.8" />
+        <line x1="12" y1="10" x2="24" y2="4" stroke="currentColor" strokeWidth="1.8" />
+        <line x1="12" y1="18" x2="24" y2="24" stroke="currentColor" strokeWidth="1.8" />
+        <polygon points="20,20 25,25 25,19" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (type === 'MOSFET_N') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 28" className={`${className} text-purple-400`}>
+        <line x1="8" y1="6" x2="8" y2="22" stroke="currentColor" strokeWidth="2" />
+        <line x1="14" y1="6" x2="14" y2="10" stroke="currentColor" strokeWidth="2" />
+        <line x1="14" y1="12" x2="14" y2="16" stroke="currentColor" strokeWidth="2" />
+        <line x1="14" y1="18" x2="14" y2="22" stroke="currentColor" strokeWidth="2" />
+        <path d="M 2 14 L 8 14 M 14 8 L 26 8 M 14 20 L 26 20 M 14 14 L 20 14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <polygon points="15,14 19,12 19,16" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (type === 'POTENTIOMETER') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-amber-300`}>
+        <path d="M 2 12 L 6 12 L 9 7 L 15 17 L 21 7 L 27 17 L 30 12 L 34 12" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M 18 2 L 18 10 M 15 7 L 18 10 L 21 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'RELAY') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-orange-400`}>
+        <rect x="4" y="4" width="28" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M 8 12 L 14 12 M 22 10 L 28 8 M 22 16 L 28 16" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    );
+  }
+  if (type === 'FUSE') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-rose-400`}>
+        <rect x="8" y="7" width="20" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M 2 12 L 8 12 M 10 12 Q 18 6 18 12 Q 18 18 26 12 M 28 12 L 34 12" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    );
+  }
+
+  // Inputs & Power
+  if (type === 'SWITCH' || type === 'PUSH_BUTTON') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400`}>
+        <circle cx="8" cy="14" r="2.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        <circle cx="28" cy="14" r="2.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        <line x1="8" y1="12" x2="24" y2="4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'CLOCK') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-cyan-400`}>
+        <path d="M 3 17 L 10 17 L 10 7 L 19 7 L 19 17 L 28 17 L 28 7 L 33 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="miter" />
+      </svg>
+    );
+  }
+  if (type === 'CONST_HIGH') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400 font-bold`}>
+        <path d="M 18 20 L 18 7 M 13 12 L 18 6 L 23 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <text x="24" y="16" fill="currentColor" fontSize="10" fontFamily="monospace" fontWeight="bold">1</text>
+      </svg>
+    );
+  }
+  if (type === 'CONST_LOW') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-slate-400`}>
+        <line x1="18" y1="4" x2="18" y2="12" stroke="currentColor" strokeWidth="2" />
+        <line x1="8" y1="12" x2="28" y2="12" stroke="currentColor" strokeWidth="2" />
+        <line x1="12" y1="16" x2="24" y2="16" stroke="currentColor" strokeWidth="2" />
+        <line x1="15" y1="20" x2="21" y2="20" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  // Displays & Indicators
+  if (type === 'LED') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-rose-400`}>
+        <circle cx="15" cy="12" r="6" fill="#ef4444" fillOpacity="0.4" stroke="currentColor" strokeWidth="2" />
+        <path d="M 22 7 L 28 4 M 25 3 L 28 4 L 28 7 M 24 14 L 30 11 M 27 10 L 30 11 L 30 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'SEVEN_SEG') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 28" className={`${className} text-rose-400`}>
+        <rect x="2" y="2" width="20" height="24" rx="2" fill="#881337" fillOpacity="0.3" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M 6 6 L 18 6 M 18 6 L 18 14 M 6 14 L 18 14 M 6 14 L 6 22 M 18 14 L 18 22 M 6 22 L 18 22 M 6 6 L 6 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'HEX_DISPLAY') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 28" className={`${className} text-cyan-400`}>
+        <rect x="2" y="2" width="20" height="24" rx="2" fill="#083344" stroke="currentColor" strokeWidth="1.5" />
+        <text x="12" y="19" textAnchor="middle" fill="currentColor" fontSize="14" fontFamily="monospace" fontWeight="bold">F</text>
+      </svg>
+    );
+  }
+  if (type === 'BAR_GRAPH') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" className={`${className} text-emerald-400`}>
+        <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="5" y1="6" x2="19" y2="6" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+        <line x1="5" y1="10" x2="19" y2="10" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+        <line x1="5" y1="14" x2="19" y2="14" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+        <line x1="5" y1="18" x2="19" y2="18" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'BUZZER') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-amber-400`}>
+        <path d="M 6 9 L 12 9 L 18 4 L 18 20 L 12 15 L 6 15 Z" fill="currentColor" fillOpacity="0.4" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M 23 7 Q 27 12 23 17 M 27 4 Q 33 12 27 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'PROBE') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400`}>
+        <circle cx="18" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M 12 15 L 18 8 L 22 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  // Flip-Flops & Latches
+  if (type.endsWith('_FF') || type.endsWith('_LATCH')) {
+    const label = type === 'D_FF' ? 'D' : type === 'JK_FF' ? 'JK' : type === 'T_FF' ? 'T' : 'SR';
+    return (
+      <svg width="24" height="20" viewBox="0 0 36 28" className={`${className} text-teal-400`}>
+        <rect x="4" y="2" width="28" height="24" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M 4 11 L 10 14 L 4 17" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <text x="20" y="17" textAnchor="middle" fill="currentColor" fontSize="10" fontFamily="sans-serif" fontWeight="bold">{label}</text>
+      </svg>
+    );
+  }
+
+  // Arithmetic & Adders
+  if (['HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB', 'ALU_4BIT'].includes(type)) {
+    const sym = type.includes('SUB') ? '−' : type.includes('ALU') ? 'ALU' : 'Σ';
+    return (
+      <svg width="24" height="20" viewBox="0 0 36 28" className={`${className} text-indigo-400`}>
+        <rect x="4" y="2" width="28" height="24" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <text x="18" y="18" textAnchor="middle" fill="currentColor" fontSize={type.includes('ALU') ? "9" : "14"} fontFamily="sans-serif" fontWeight="bold">{sym}</text>
+      </svg>
+    );
+  }
+
+  // Multiplexers & Decoders
+  if (type.startsWith('MUX') || type.startsWith('DEMUX') || type.startsWith('DECODER') || type.startsWith('PRIORITY') || type === 'BCD_TO_7SEG') {
+    const txt = type.startsWith('MUX') ? 'MUX' : type.startsWith('DEMUX') ? 'DMUX' : type.startsWith('DEC') ? 'DEC' : 'IC';
+    return (
+      <svg width="24" height="20" viewBox="0 0 36 28" className={`${className} text-cyan-400`}>
+        <polygon points="6,2 30,6 30,22 6,26" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <text x="18" y="17" textAnchor="middle" fill="currentColor" fontSize="9" fontFamily="sans-serif" fontWeight="bold">{txt}</text>
+      </svg>
+    );
+  }
+
+  // Counters & Registers
+  if (type.includes('COUNTER') || type.includes('REG')) {
+    return (
+      <svg width="24" height="20" viewBox="0 0 36 28" className={`${className} text-purple-400`}>
+        <rect x="4" y="2" width="28" height="24" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="10" cy="14" r="1.5" fill="currentColor" />
+        <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+        <circle cx="20" cy="14" r="1.5" fill="currentColor" />
+        <circle cx="25" cy="14" r="1.5" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  // Note / Comment
+  if (type === 'COMMENT') {
+    return <FileText className={`${className} text-amber-400`} />;
+  }
+
+  // Default IC chip
+  return (
+    <svg width="24" height="20" viewBox="0 0 36 28" className={`${className} text-cyan-400`}>
+      <rect x="6" y="4" width="24" height="20" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <line x1="2" y1="9" x2="6" y2="9" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="2" y1="19" x2="6" y2="19" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="30" y1="9" x2="34" y2="9" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="30" y1="19" x2="34" y2="19" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+};
+
 export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   initialCircuit,
   onSaveToVault,
@@ -2207,41 +2456,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                         className="flex flex-col items-start p-2 rounded-lg bg-slate-800/90 hover:bg-slate-750 text-slate-200 border border-slate-700/80 text-xs font-semibold transition-all hover:border-cyan-400/50 group text-left"
                       >
                         <div className="flex items-center gap-1.5 w-full mb-0.5">
-                          {isGate ? (
-                            <svg width="18" height="14" viewBox="0 0 36 28" className="shrink-0 text-cyan-400 group-hover:scale-110 transition-transform">
-                              <MiniGateIcon type={item.type} />
-                            </svg>
-                          ) : item.type === 'COMMENT' ? (
-                            <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                          ) : item.type === 'LED' ? (
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 shrink-0" />
-                          ) : item.type === 'SEVEN_SEG' ? (
-                            <div className="w-2.5 h-3.5 rounded-sm border border-rose-500 bg-rose-500/20 text-[7px] flex items-center justify-center text-rose-300 font-bold shrink-0">
-                              8
-                            </div>
-                          ) : item.type === 'HEX_DISPLAY' ? (
-                            <div className="w-2.5 h-3.5 rounded-sm border border-cyan-400 bg-cyan-950 text-[7px] flex items-center justify-center text-cyan-300 font-mono font-bold shrink-0">
-                              F
-                            </div>
-                          ) : item.type === 'BAR_GRAPH' ? (
-                            <div className="w-2.5 h-3.5 rounded-sm flex flex-col justify-between py-0.5 shrink-0 bg-slate-950 border border-slate-700 px-0.5">
-                              <div className="h-0.5 bg-rose-500 rounded" />
-                              <div className="h-0.5 bg-amber-400 rounded" />
-                              <div className="h-0.5 bg-emerald-400 rounded" />
-                            </div>
-                          ) : item.type === 'BUZZER' ? (
-                            <span className="text-[10px] shrink-0 leading-none">🔊</span>
-                          ) : item.type === 'CLOCK' ? (
-                            <div className="text-[10px] font-mono text-cyan-400 shrink-0">~</div>
-                          ) : item.type === 'SWITCH' || item.type === 'PUSH_BUTTON' ? (
-                            <div className="w-3 h-2 rounded bg-emerald-500/40 border border-emerald-400 shrink-0" />
-                          ) : item.type === 'CONST_HIGH' ? (
-                            <span className="text-[9px] font-bold text-emerald-400 font-mono shrink-0">1</span>
-                          ) : item.type === 'CONST_LOW' ? (
-                            <span className="text-[9px] font-bold text-slate-400 font-mono shrink-0">0</span>
-                          ) : (
-                            <div className="w-2 h-2 rounded-sm bg-cyan-500/40 border border-cyan-400/60 shrink-0" />
-                          )}
+                          <ComponentSymbolIcon type={item.type} className="h-4 w-5 shrink-0" />
                           <span className="truncate text-white font-bold text-[11px] leading-tight">
                             {item.label}
                           </span>
@@ -3760,17 +3975,19 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">Quick:</span>
         <button
           onClick={() => addComponent('COMMENT')}
-          className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0 border border-amber-500/40"
+          className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0 border border-amber-500/40"
         >
-          + Note
+          <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+          <span>Note</span>
         </button>
         {(['SWITCH', 'AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'LED'] as GateType[]).map(g => (
           <button
             key={g}
             onClick={() => addComponent(g)}
-            className="px-2.5 py-1 rounded bg-slate-800 text-slate-200 text-xs font-bold shrink-0 border border-slate-700"
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 text-slate-200 text-xs font-bold shrink-0 border border-slate-700 active:bg-cyan-950"
           >
-            {g}
+            <ComponentSymbolIcon type={g} className="h-3.5 w-4 shrink-0" />
+            <span>{g}</span>
           </button>
         ))}
       </div>
@@ -4054,10 +4271,15 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                               addComponent(item.type);
                               setShowMobilePaletteModal(false);
                             }}
-                            className="p-2 rounded-lg bg-slate-800 text-left border border-slate-700/80 active:bg-cyan-950 transition-colors"
+                            className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-750 text-left border border-slate-700/80 active:bg-cyan-950 transition-all flex items-center gap-2.5 shadow-sm active:scale-98"
                           >
-                            <div className="font-bold text-xs text-white truncate">{item.label}</div>
-                            <div className="text-[10px] text-slate-400 truncate">{item.sub}</div>
+                            <div className="flex h-9 w-10 items-center justify-center rounded-lg bg-slate-900 border border-slate-700/60 shrink-0 shadow-inner">
+                              <ComponentSymbolIcon type={item.type} className="h-5 w-6 shrink-0" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-xs text-white truncate">{item.label}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{item.sub}</div>
+                            </div>
                           </button>
                         ))}
                       </div>

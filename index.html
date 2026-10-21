@@ -7,6 +7,43 @@
     <meta name="description" content="DE-Lab Pro - Digital Electronics Virtual Laboratory. Interactive virtual laboratory for digital logic circuits, logic gates, Boolean algebra, K-Maps, combinational and sequential circuits." />
     <meta name="theme-color" content="#0f172a" />
     <title>DE-Lab Pro — Digital Electronics Virtual Laboratory</title>
+    <style>
+      /* Eradicate Netlify Badge & Drawer */
+      #nl-badge-frame,
+      #nl-hud-frame,
+      iframe[title*="Netlify"],
+      iframe[src*="netlify"],
+      iframe[id^="nl-"],
+      netlify-drawer,
+      [data-netlify-drawer],
+      [class*="netlify-drawer"],
+      [id*="netlify-drawer"] {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        left: -9999px !important;
+        top: -9999px !important;
+        z-index: -9999 !important;
+      }
+    </style>
+    <script>
+      try {
+        localStorage.setItem('nl-hud:public:v1', 'hidden');
+        localStorage.setItem('nl-hud:owner-private:v1', 'hidden');
+      } catch (e) {}
+      function purgeNetlifyBadge() {
+        const els = document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[title*="Netlify"], iframe[src*="netlify"], iframe[id^="nl-"], netlify-drawer');
+        els.forEach(el => el.remove());
+      }
+      purgeNetlifyBadge();
+      new MutationObserver(purgeNetlifyBadge).observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener('DOMContentLoaded', purgeNetlifyBadge);
+      window.addEventListener('load', purgeNetlifyBadge);
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-slate-950">
     <div id="root"></div>
