@@ -65,7 +65,7 @@ export function validateCircuit(circuit: Circuit): { isValid: boolean; errors: s
 
   // Check for disconnected/floating inputs on gates
   for (const node of circuit.nodes) {
-    if (['SWITCH', 'PUSH_BUTTON', 'CLOCK', 'CONST_HIGH', 'CONST_LOW', 'COMMENT'].includes(node.type)) continue;
+    if (['SWITCH', 'PUSH_BUTTON', 'CLOCK', 'CONST_HIGH', 'CONST_LOW', 'COMMENT', 'SEVEN_SEG', 'HEX_DISPLAY', 'BAR_GRAPH'].includes(node.type)) continue;
 
     for (let i = 0; i < node.inputs.length; i++) {
       const key = `${node.id}_in_${i}`;
@@ -134,7 +134,8 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
     }
 
     case 'LED':
-    case 'PROBE': {
+    case 'PROBE':
+    case 'BUZZER': {
       const inVal = node.inputs[0]?.value ?? 'Z';
       const outVal = inVal === 1 ? 1 : 0;
       if (node.outputs[0] && node.outputs[0].value !== outVal) {
@@ -144,9 +145,11 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
+    case 'HEX_DISPLAY':
+    case 'BAR_GRAPH':
     case 'SEVEN_SEG':
     case 'COMMENT': {
-      // Passive annotation element or 7-segment display
+      // Passive annotation element or display
       break;
     }
 
@@ -312,6 +315,30 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
+    case 'D_LATCH': {
+      // Inputs: [D, EN] -> Outputs: [Q, Q']
+      const d = node.inputs[0]?.value === 1 ? 1 : 0;
+      const en = node.inputs[1]?.value === 1 ? 1 : 0;
+      if (!node.state) {
+        node.state = { q: 0, qBar: 1 };
+      }
+      if (en === 1) {
+        node.state.q = d;
+        node.state.qBar = d === 1 ? 0 : 1;
+      }
+      const q = node.state.q ?? 0;
+      const qBar = node.state.qBar ?? 1;
+      if (node.outputs[0] && node.outputs[0].value !== q) {
+        node.outputs[0].value = q;
+        changed = true;
+      }
+      if (node.outputs[1] && node.outputs[1].value !== qBar) {
+        node.outputs[1].value = qBar;
+        changed = true;
+      }
+      break;
+    }
+
     case 'HALF_ADDER': {
       // Inputs: [A, B] -> Outputs: [Sum (S), Carry (C)]
       const a = node.inputs[0]?.value === 1 ? 1 : 0;
@@ -406,6 +433,26 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
+    case 'MUX_8TO1': {
+      // Inputs: [D0..D7 (0..7), S0 (8), S1 (9), S2 (10), EN (11)] -> Outputs: [Y (0), W / Y' (1)]
+      const s0 = node.inputs[8]?.value === 1 ? 1 : 0;
+      const s1 = node.inputs[9]?.value === 1 ? 2 : 0;
+      const s2 = node.inputs[10]?.value === 1 ? 4 : 0;
+      const sel = s0 + s1 + s2;
+      const en = node.inputs[11] ? (node.inputs[11].value === 1 ? 1 : 0) : 1;
+      const selVal: LogicValue = en === 1 ? (node.inputs[sel]?.value ?? 0) : 0;
+      const invVal: LogicValue = en === 1 ? (selVal === 1 ? 0 : 1) : 1;
+      if (node.outputs[0] && node.outputs[0].value !== selVal) {
+        node.outputs[0].value = selVal;
+        changed = true;
+      }
+      if (node.outputs[1] && node.outputs[1].value !== invVal) {
+        node.outputs[1].value = invVal;
+        changed = true;
+      }
+      break;
+    }
+
     case 'DEMUX_1TO2': {
       // Inputs: [In, S] -> Outputs: [Y0, Y1]
       const inVal = node.inputs[0]?.value ?? 0;
@@ -447,6 +494,23 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       const sel = a1 + a0;
       for (let k = 0; k < 4; k++) {
         const val: LogicValue = en === 1 && k === sel ? 1 : 0;
+        if (node.outputs[k] && node.outputs[k].value !== val) {
+          node.outputs[k].value = val;
+          changed = true;
+        }
+      }
+      break;
+    }
+
+    case 'DECODER_3TO8': {
+      // Inputs: [A, B, C, EN] -> Outputs: [Y0..Y7]
+      const a = node.inputs[0]?.value === 1 ? 1 : 0;
+      const b = node.inputs[1]?.value === 1 ? 2 : 0;
+      const c = node.inputs[2]?.value === 1 ? 4 : 0;
+      const en = node.inputs[3] ? (node.inputs[3].value === 1 ? 1 : 0) : 1;
+      const sel = a + b + c;
+      for (let k = 0; k < 8; k++) {
+        const val: LogicValue = (en === 1 && k === sel) ? 1 : 0;
         if (node.outputs[k] && node.outputs[k].value !== val) {
           node.outputs[k].value = val;
           changed = true;
@@ -506,6 +570,112 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
+    case 'MAG_COMP_4BIT': {
+      // Inputs: A0..A3 (0..3), B0..B3 (4..7) -> Outputs: [A>B, A=B, A<B]
+      const a = (node.inputs[0]?.value === 1 ? 1 : 0) |
+                (node.inputs[1]?.value === 1 ? 2 : 0) |
+                (node.inputs[2]?.value === 1 ? 4 : 0) |
+                (node.inputs[3]?.value === 1 ? 8 : 0);
+      const b = (node.inputs[4]?.value === 1 ? 1 : 0) |
+                (node.inputs[5]?.value === 1 ? 2 : 0) |
+                (node.inputs[6]?.value === 1 ? 4 : 0) |
+                (node.inputs[7]?.value === 1 ? 8 : 0);
+      const gt: LogicValue = a > b ? 1 : 0;
+      const eq: LogicValue = a === b ? 1 : 0;
+      const lt: LogicValue = a < b ? 1 : 0;
+      if (node.outputs[0] && node.outputs[0].value !== gt) {
+        node.outputs[0].value = gt;
+        changed = true;
+      }
+      if (node.outputs[1] && node.outputs[1].value !== eq) {
+        node.outputs[1].value = eq;
+        changed = true;
+      }
+      if (node.outputs[2] && node.outputs[2].value !== lt) {
+        node.outputs[2].value = lt;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'PARITY_GEN': {
+      // Inputs: [D0..D3] -> Outputs: [PEVEN, PODD]
+      const ones = (node.inputs[0]?.value === 1 ? 1 : 0) +
+                   (node.inputs[1]?.value === 1 ? 1 : 0) +
+                   (node.inputs[2]?.value === 1 ? 1 : 0) +
+                   (node.inputs[3]?.value === 1 ? 1 : 0);
+      const even: LogicValue = ones % 2 === 0 ? 1 : 0;
+      const odd: LogicValue = ones % 2 === 1 ? 1 : 0;
+      if (node.outputs[0] && node.outputs[0].value !== even) {
+        node.outputs[0].value = even;
+        changed = true;
+      }
+      if (node.outputs[1] && node.outputs[1].value !== odd) {
+        node.outputs[1].value = odd;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'ALU_4BIT': {
+      // Inputs: [A0..A3, B0..B3, S0, S1, Cin] -> Outputs: [F0..F3, Cout, Zero]
+      const a = (node.inputs[0]?.value === 1 ? 1 : 0) |
+                (node.inputs[1]?.value === 1 ? 2 : 0) |
+                (node.inputs[2]?.value === 1 ? 4 : 0) |
+                (node.inputs[3]?.value === 1 ? 8 : 0);
+      const b = (node.inputs[4]?.value === 1 ? 1 : 0) |
+                (node.inputs[5]?.value === 1 ? 2 : 0) |
+                (node.inputs[6]?.value === 1 ? 4 : 0) |
+                (node.inputs[7]?.value === 1 ? 8 : 0);
+      const s0 = node.inputs[8]?.value === 1 ? 1 : 0;
+      const s1 = node.inputs[9]?.value === 1 ? 2 : 0;
+      const cin = node.inputs[10]?.value === 1 ? 1 : 0;
+      const op = s0 + s1; // 0: ADD, 1: SUB, 2: AND, 3: OR
+
+      let fVal = 0;
+      let coutVal: LogicValue = 0;
+
+      if (op === 0) {
+        const sum = a + b + cin;
+        fVal = sum & 0xF;
+        coutVal = sum > 15 ? 1 : 0;
+      } else if (op === 1) {
+        const diff = a - b - cin;
+        fVal = (diff + 16) & 0xF;
+        coutVal = diff < 0 ? 1 : 0;
+      } else if (op === 2) {
+        fVal = (a & b) & 0xF;
+        coutVal = 0;
+      } else {
+        fVal = (a | b) & 0xF;
+        coutVal = 0;
+      }
+
+      const zeroVal: LogicValue = fVal === 0 ? 1 : 0;
+      const fBits: LogicValue[] = [
+        (fVal & 1) ? 1 : 0,
+        (fVal & 2) ? 1 : 0,
+        (fVal & 4) ? 1 : 0,
+        (fVal & 8) ? 1 : 0,
+      ];
+
+      for (let k = 0; k < 4; k++) {
+        if (node.outputs[k] && node.outputs[k].value !== fBits[k]) {
+          node.outputs[k].value = fBits[k];
+          changed = true;
+        }
+      }
+      if (node.outputs[4] && node.outputs[4].value !== coutVal) {
+        node.outputs[4].value = coutVal;
+        changed = true;
+      }
+      if (node.outputs[5] && node.outputs[5].value !== zeroVal) {
+        node.outputs[5].value = zeroVal;
+        changed = true;
+      }
+      break;
+    }
+
     case 'COUNTER_4BIT': {
       // Inputs: [CLK, RST] -> Outputs: [Q0, Q1, Q2, Q3]
       const clk = node.inputs[0]?.value ?? 0;
@@ -541,6 +711,46 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       break;
     }
 
+    case 'DECADE_COUNTER': {
+      // Inputs: [CLK, RST] -> Outputs: [Q0, Q1, Q2, Q3, RCO]
+      const clk = node.inputs[0]?.value ?? 0;
+      const rst = node.inputs[1]?.value ?? 0;
+
+      if (!node.state) {
+        node.state = { counterValue: 0, prevClock: 0 };
+      }
+
+      const prevClk = node.state.prevClock ?? 0;
+      const isRisingEdge = prevClk === 0 && clk === 1;
+      node.state.prevClock = clk;
+
+      if (rst === 1) {
+        node.state.counterValue = 0;
+      } else if (isRisingEdge || clockTicked) {
+        node.state.counterValue = ((node.state.counterValue ?? 0) + 1) % 10;
+      }
+
+      const c = node.state.counterValue ?? 0;
+      const bits: LogicValue[] = [
+        (c & 1) ? 1 : 0,
+        (c & 2) ? 1 : 0,
+        (c & 4) ? 1 : 0,
+        (c & 8) ? 1 : 0,
+      ];
+      for (let k = 0; k < 4; k++) {
+        if (node.outputs[k] && node.outputs[k].value !== bits[k]) {
+          node.outputs[k].value = bits[k];
+          changed = true;
+        }
+      }
+      const rco: LogicValue = c === 9 ? 1 : 0;
+      if (node.outputs[4] && node.outputs[4].value !== rco) {
+        node.outputs[4].value = rco;
+        changed = true;
+      }
+      break;
+    }
+
     case 'SHIFT_REG_4BIT': {
       // Inputs: [DIN, CLK, RST] -> Outputs: [Q0, Q1, Q2, Q3]
       const din = node.inputs[0]?.value === 1 ? 1 : 0;
@@ -560,6 +770,42 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
       } else if (isRisingEdge || clockTicked) {
         const cur = node.state.regValues ?? [0, 0, 0, 0];
         node.state.regValues = [din, cur[0], cur[1], cur[2]];
+      }
+
+      const regs = node.state.regValues ?? [0, 0, 0, 0];
+      for (let k = 0; k < 4; k++) {
+        if (node.outputs[k] && node.outputs[k].value !== regs[k]) {
+          node.outputs[k].value = regs[k];
+          changed = true;
+        }
+      }
+      break;
+    }
+
+    case 'REGISTER_4BIT': {
+      // Inputs: [D0, D1, D2, D3, CLK, LOAD, RST] -> Outputs: [Q0, Q1, Q2, Q3]
+      const d0 = node.inputs[0]?.value === 1 ? 1 : 0;
+      const d1 = node.inputs[1]?.value === 1 ? 1 : 0;
+      const d2 = node.inputs[2]?.value === 1 ? 1 : 0;
+      const d3 = node.inputs[3]?.value === 1 ? 1 : 0;
+      const clk = node.inputs[4]?.value ?? 0;
+      const load = node.inputs[5] ? (node.inputs[5].value === 1 ? 1 : 0) : 1;
+      const rst = node.inputs[6]?.value ?? 0;
+
+      if (!node.state) {
+        node.state = { regValues: [0, 0, 0, 0], prevClock: 0 };
+      }
+
+      const prevClk = node.state.prevClock ?? 0;
+      const isRisingEdge = prevClk === 0 && clk === 1;
+      node.state.prevClock = clk;
+
+      if (rst === 1) {
+        node.state.regValues = [0, 0, 0, 0];
+      } else if (isRisingEdge || clockTicked) {
+        if (load === 1) {
+          node.state.regValues = [d0, d1, d2, d3];
+        }
       }
 
       const regs = node.state.regValues ?? [0, 0, 0, 0];

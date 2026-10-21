@@ -289,4 +289,131 @@ describe('Circuit Simulator & Validator', () => {
     expect(bcdNode?.outputs[5].value).toBe(0); // f
     expect(bcdNode?.outputs[6].value).toBe(1); // g
   });
+
+  it('accurately executes 4-Bit ALU arithmetic and logic operations', () => {
+    // Op 0: ADD (A + B + Cin) -> 5 + 3 + 0 = 8 (F = 1000b, Cout = 0, Zero = 0)
+    const aluCircuit: Circuit = {
+      id: 'alu_test',
+      name: 'ALU Test',
+      createdAt: 0,
+      updatedAt: 0,
+      nodes: [
+        {
+          id: 'alu1',
+          type: 'ALU_4BIT',
+          label: 'ALU',
+          x: 0,
+          y: 0,
+          inputs: [
+            { id: 'in_0', name: 'A0', type: 'input', value: 1 }, // A = 5 (0101b)
+            { id: 'in_1', name: 'A1', type: 'input', value: 0 },
+            { id: 'in_2', name: 'A2', type: 'input', value: 1 },
+            { id: 'in_3', name: 'A3', type: 'input', value: 0 },
+            { id: 'in_4', name: 'B0', type: 'input', value: 1 }, // B = 3 (0011b)
+            { id: 'in_5', name: 'B1', type: 'input', value: 1 },
+            { id: 'in_6', name: 'B2', type: 'input', value: 0 },
+            { id: 'in_7', name: 'B3', type: 'input', value: 0 },
+            { id: 'in_8', name: 'S0', type: 'input', value: 0 }, // S = 0 -> ADD
+            { id: 'in_9', name: 'S1', type: 'input', value: 0 },
+            { id: 'in_10', name: 'Cin', type: 'input', value: 0 },
+          ],
+          outputs: [
+            { id: 'out_0', name: 'F0', type: 'output', value: 0 },
+            { id: 'out_1', name: 'F1', type: 'output', value: 0 },
+            { id: 'out_2', name: 'F2', type: 'output', value: 0 },
+            { id: 'out_3', name: 'F3', type: 'output', value: 0 },
+            { id: 'out_4', name: 'Cout', type: 'output', value: 0 },
+            { id: 'out_5', name: 'Zero', type: 'output', value: 0 },
+          ],
+        },
+      ],
+      wires: [],
+    };
+
+    const res = simulateCircuit(aluCircuit);
+    const aluNode = res.nodes.find(n => n.id === 'alu1');
+    expect(aluNode?.outputs[0].value).toBe(0); // F0
+    expect(aluNode?.outputs[1].value).toBe(0); // F1
+    expect(aluNode?.outputs[2].value).toBe(0); // F2
+    expect(aluNode?.outputs[3].value).toBe(1); // F3 = 8
+    expect(aluNode?.outputs[4].value).toBe(0); // Cout = 0
+    expect(aluNode?.outputs[5].value).toBe(0); // Zero = 0
+  });
+
+  it('correctly routes signals through 8:1 MUX and 3:8 Decoder', () => {
+    // 8:1 MUX: Set select to 5 (101b). D5 = 1, others 0 -> Y = 1, W = 0
+    const muxCircuit: Circuit = {
+      id: 'mux8_test',
+      name: 'MUX8 Test',
+      createdAt: 0,
+      updatedAt: 0,
+      nodes: [
+        {
+          id: 'mux8',
+          type: 'MUX_8TO1',
+          label: '8:1 MUX',
+          x: 0,
+          y: 0,
+          inputs: [
+            { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+            { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+            { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+            { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+            { id: 'in_4', name: 'D4', type: 'input', value: 0 },
+            { id: 'in_5', name: 'D5', type: 'input', value: 1 }, // High
+            { id: 'in_6', name: 'D6', type: 'input', value: 0 },
+            { id: 'in_7', name: 'D7', type: 'input', value: 0 },
+            { id: 'in_8', name: 'S0', type: 'input', value: 1 }, // 1
+            { id: 'in_9', name: 'S1', type: 'input', value: 0 }, // 0
+            { id: 'in_10', name: 'S2', type: 'input', value: 1 }, // 4 -> Sel = 5
+            { id: 'in_11', name: 'EN', type: 'input', value: 1 },
+          ],
+          outputs: [
+            { id: 'out_0', name: 'Y', type: 'output', value: 0 },
+            { id: 'out_1', name: 'W', type: 'output', value: 1 },
+          ],
+        },
+      ],
+      wires: [],
+    };
+
+    const res = simulateCircuit(muxCircuit);
+    const muxNode = res.nodes.find(n => n.id === 'mux8');
+    expect(muxNode?.outputs[0].value).toBe(1); // Y
+    expect(muxNode?.outputs[1].value).toBe(0); // W (inverted Y)
+  });
+
+  it('correctly simulates transparent D-Latch and Decade BCD counter', () => {
+    // D Latch with EN=1 captures D=1
+    const latchCircuit: Circuit = {
+      id: 'latch_test',
+      name: 'Latch Test',
+      createdAt: 0,
+      updatedAt: 0,
+      nodes: [
+        {
+          id: 'latch1',
+          type: 'D_LATCH',
+          label: 'D Latch',
+          x: 0,
+          y: 0,
+          inputs: [
+            { id: 'in_0', name: 'D', type: 'input', value: 1 },
+            { id: 'in_1', name: 'EN', type: 'input', value: 1 },
+          ],
+          outputs: [
+            { id: 'out_0', name: 'Q', type: 'output', value: 0 },
+            { id: 'out_1', name: "Q'", type: 'output', value: 1 },
+          ],
+          state: { q: 0, qBar: 1 },
+        },
+      ],
+      wires: [],
+    };
+
+    const res = simulateCircuit(latchCircuit);
+    const latch = res.nodes.find(n => n.id === 'latch1');
+    expect(latch?.outputs[0].value).toBe(1); // Q
+    expect(latch?.outputs[1].value).toBe(0); // Q'
+  });
 });

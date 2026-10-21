@@ -34,7 +34,8 @@ import {
   Palette,
   Search,
   Sliders,
-  X
+  X,
+  Cpu
 } from 'lucide-react';
 
 interface CircuitEditorProps {
@@ -71,28 +72,43 @@ export const getNodeDimensions = (node: CircuitNode) => {
   if (node.type === 'COMMENT') {
     return { width: node.width || 200, height: node.height || 130 };
   }
-  if (node.type === 'SEVEN_SEG') {
+  if (node.type === 'SEVEN_SEG' || node.type === 'HEX_DISPLAY') {
     return { width: 130, height: 170 };
   }
+  if (node.type === 'BAR_GRAPH') {
+    return { width: 110, height: 130 };
+  }
+  if (node.type === 'BUZZER') {
+    return { width: 104, height: 80 };
+  }
   if (node.type === 'BCD_TO_7SEG') {
-    return { width: 140, height: 180 };
+    return { width: 140, height: 190 };
   }
-  if (node.type === 'COUNTER_4BIT' || node.type === 'SHIFT_REG_4BIT') {
-    return { width: 130, height: 120 };
+  if (node.type === 'ALU_4BIT') {
+    return { width: 160, height: 260 };
   }
-  if (['HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB', 'MAG_COMP_2BIT'].includes(node.type)) {
+  if (node.type === 'MUX_8TO1' || node.type === 'DECODER_3TO8') {
+    return { width: 146, height: 260 };
+  }
+  if (node.type === 'MAG_COMP_4BIT') {
+    return { width: 146, height: 220 };
+  }
+  if (node.type === 'COUNTER_4BIT' || node.type === 'DECADE_COUNTER' || node.type === 'SHIFT_REG_4BIT' || node.type === 'REGISTER_4BIT') {
+    return { width: 136, height: 130 };
+  }
+  if (['HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB', 'MAG_COMP_2BIT', 'PARITY_GEN'].includes(node.type)) {
     return { width: 130, height: 110 };
   }
   if (['MUX_2TO1', 'MUX_4TO1', 'DEMUX_1TO2', 'DEMUX_1TO4', 'DECODER_2TO4', 'PRIORITY_ENC_4TO2'].includes(node.type)) {
     const maxPorts = Math.max(node.inputs.length, node.outputs.length);
     return { width: 136, height: Math.max(96, maxPorts * 26 + 26) };
   }
-  if (node.type.endsWith('_FF')) {
+  if (node.type.endsWith('_FF') || node.type === 'D_LATCH') {
     return { width: 120, height: 96 };
   }
-  if (['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'TRI_STATE'].includes(node.type)) {
+  if (['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'NOR3', 'XOR3', 'AND4', 'OR4', 'NAND4', 'NOR4', 'TRI_STATE'].includes(node.type)) {
     const inputCount = Math.max(2, node.inputs.length);
-    const height = Math.max(80, inputCount * 28 + 24);
+    const height = Math.max(80, inputCount * 26 + 26);
     return { width: 116, height };
   }
   if (['SWITCH', 'CLOCK', 'PUSH_BUTTON', 'CONST_HIGH', 'CONST_LOW'].includes(node.type)) {
@@ -153,19 +169,30 @@ const GateSymbol: React.FC<{
 
   return (
     <g>
-      {inputCount >= 1 && (
-        <line x1="0" y1={inY0} x2={gx} y2={inY0} stroke="#64748b" strokeWidth="2" />
-      )}
-      {inputCount >= 3 && (
-        <line x1="0" y1={(inY0 + inY1) / 2} x2={gx} y2={(inY0 + inY1) / 2} stroke="#64748b" strokeWidth="2" />
-      )}
-      {inputCount >= 2 && (
-        <line x1="0" y1={inY1} x2={gx} y2={inY1} stroke="#64748b" strokeWidth="2" />
+      {inputCount === 4 ? (
+        <>
+          <line x1="0" y1={inY0} x2={gx} y2={inY0} stroke="#64748b" strokeWidth="2" />
+          <line x1="0" y1={inY0 + (inY1 - inY0) / 3} x2={gx} y2={inY0 + (inY1 - inY0) / 3} stroke="#64748b" strokeWidth="2" />
+          <line x1="0" y1={inY0 + 2 * (inY1 - inY0) / 3} x2={gx} y2={inY0 + 2 * (inY1 - inY0) / 3} stroke="#64748b" strokeWidth="2" />
+          <line x1="0" y1={inY1} x2={gx} y2={inY1} stroke="#64748b" strokeWidth="2" />
+        </>
+      ) : (
+        <>
+          {inputCount >= 1 && (
+            <line x1="0" y1={inY0} x2={gx} y2={inY0} stroke="#64748b" strokeWidth="2" />
+          )}
+          {inputCount >= 3 && (
+            <line x1="0" y1={(inY0 + inY1) / 2} x2={gx} y2={(inY0 + inY1) / 2} stroke="#64748b" strokeWidth="2" />
+          )}
+          {inputCount >= 2 && (
+            <line x1="0" y1={inY1} x2={gx} y2={inY1} stroke="#64748b" strokeWidth="2" />
+          )}
+        </>
       )}
       <line x1={gx + gw - 4} y1={midY} x2={width} y2={midY} stroke="#64748b" strokeWidth="2" />
 
       <g transform={`translate(${gx}, ${gy})`}>
-        {(type === 'AND' || type === 'AND3') && (
+        {(type === 'AND' || type === 'AND3' || type === 'AND4') && (
           <path
             d="M 2 2 L 22 2 A 16 16 0 0 1 22 34 L 2 34 Z"
             fill="#0f172a"
@@ -174,7 +201,7 @@ const GateSymbol: React.FC<{
             strokeLinejoin="round"
           />
         )}
-        {(type === 'NAND' || type === 'NAND3') && (
+        {(type === 'NAND' || type === 'NAND3' || type === 'NAND4') && (
           <>
             <path
               d="M 2 2 L 20 2 A 16 16 0 0 1 20 34 L 2 34 Z"
@@ -186,7 +213,7 @@ const GateSymbol: React.FC<{
             <circle cx="39.5" cy="18" r="3.5" fill="#0f172a" stroke={strokeColor} strokeWidth="2" />
           </>
         )}
-        {(type === 'OR' || type === 'OR3') && (
+        {(type === 'OR' || type === 'OR3' || type === 'OR4') && (
           <path
             d="M 2 2 Q 13 18 2 34 Q 26 34 44 18 Q 26 2 2 2 Z"
             fill="#0f172a"
@@ -195,7 +222,7 @@ const GateSymbol: React.FC<{
             strokeLinejoin="round"
           />
         )}
-        {type === 'NOR' && (
+        {(type === 'NOR' || type === 'NOR3' || type === 'NOR4') && (
           <>
             <path
               d="M 2 2 Q 13 18 2 34 Q 24 34 38 18 Q 24 2 2 2 Z"
@@ -207,7 +234,7 @@ const GateSymbol: React.FC<{
             <circle cx="42" cy="18" r="3.5" fill="#0f172a" stroke={strokeColor} strokeWidth="2" />
           </>
         )}
-        {type === 'XOR' && (
+        {(type === 'XOR' || type === 'XOR3') && (
           <>
             <path
               d="M -4 2 Q 7 18 -4 34"
@@ -284,9 +311,11 @@ const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
   switch (type) {
     case 'AND':
     case 'AND3':
+    case 'AND4':
       return <path d="M 4 4 L 18 4 A 10 10 0 0 1 18 24 L 4 24 Z" fill="none" stroke="currentColor" strokeWidth="2" />;
     case 'NAND':
     case 'NAND3':
+    case 'NAND4':
       return (
         <>
           <path d="M 3 4 L 16 4 A 10 10 0 0 1 16 24 L 3 24 Z" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -295,8 +324,11 @@ const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
       );
     case 'OR':
     case 'OR3':
+    case 'OR4':
       return <path d="M 4 4 Q 10 14 4 24 Q 20 24 32 14 Q 20 4 4 4 Z" fill="none" stroke="currentColor" strokeWidth="2" />;
     case 'NOR':
+    case 'NOR3':
+    case 'NOR4':
       return (
         <>
           <path d="M 3 4 Q 8 14 3 24 Q 16 24 26 14 Q 16 4 3 4 Z" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -304,6 +336,7 @@ const MiniGateIcon: React.FC<{ type: GateType }> = ({ type }) => {
         </>
       );
     case 'XOR':
+    case 'XOR3':
       return (
         <>
           <path d="M 0 4 Q 5 14 0 24" fill="none" stroke="currentColor" strokeWidth="1.8" />
@@ -362,6 +395,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const [jumpBridgeSize, setJumpBridgeSize] = useState<number>(8); // Height / amplitude of jump arch
   const [jumpBridgeSpan, setJumpBridgeSpan] = useState<number>(10); // Length / span along wire
   const [showJumpSettings, setShowJumpSettings] = useState<boolean>(false);
+  const [showMobilePaletteModal, setShowMobilePaletteModal] = useState<boolean>(false);
   const [paletteSearch, setPaletteSearch] = useState<string>('');
   
   // Wire creation state
@@ -642,13 +676,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       case 'AND3':
       case 'OR3':
       case 'NAND3':
+      case 'NOR3':
+      case 'XOR3':
         label = type;
         inputs = [
           { id: 'in_0', name: 'A', type: 'input', value: 0 },
           { id: 'in_1', name: 'B', type: 'input', value: 0 },
           { id: 'in_2', name: 'C', type: 'input', value: 0 },
         ];
-        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: type === 'NAND3' ? 1 : 0 }];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: (type === 'NAND3' || type === 'NOR3') ? 1 : 0 }];
+        break;
+      case 'AND4':
+      case 'OR4':
+      case 'NAND4':
+      case 'NOR4':
+        label = type;
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+          { id: 'in_2', name: 'C', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: (type === 'NAND4' || type === 'NOR4') ? 1 : 0 }];
         break;
       case 'TRI_STATE':
         label = 'Tri-State';
@@ -861,6 +910,174 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           { id: 'out_5', name: 'f', type: 'output', value: 1 },
           { id: 'out_6', name: 'g', type: 'output', value: 0 },
         ];
+        break;
+      case 'D_LATCH':
+        label = 'D Latch (7475)';
+        inputs = [
+          { id: 'in_0', name: 'D', type: 'input', value: 0 },
+          { id: 'in_1', name: 'EN', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Q', type: 'output', value: 0 },
+          { id: 'out_1', name: "Q'", type: 'output', value: 1 },
+        ];
+        state = { q: 0, qBar: 1 };
+        break;
+      case 'MUX_8TO1':
+        label = '8:1 MUX (74151)';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+          { id: 'in_4', name: 'D4', type: 'input', value: 0 },
+          { id: 'in_5', name: 'D5', type: 'input', value: 0 },
+          { id: 'in_6', name: 'D6', type: 'input', value: 0 },
+          { id: 'in_7', name: 'D7', type: 'input', value: 0 },
+          { id: 'in_8', name: 'S0', type: 'input', value: 0 },
+          { id: 'in_9', name: 'S1', type: 'input', value: 0 },
+          { id: 'in_10', name: 'S2', type: 'input', value: 0 },
+          { id: 'in_11', name: 'EN', type: 'input', value: 1 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Y', type: 'output', value: 0 },
+          { id: 'out_1', name: 'W', type: 'output', value: 1 },
+        ];
+        break;
+      case 'DECODER_3TO8':
+        label = '3:8 Decoder (74138)';
+        inputs = [
+          { id: 'in_0', name: 'A', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B', type: 'input', value: 0 },
+          { id: 'in_2', name: 'C', type: 'input', value: 0 },
+          { id: 'in_3', name: 'EN', type: 'input', value: 1 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Y0', type: 'output', value: 1 },
+          { id: 'out_1', name: 'Y1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Y2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Y3', type: 'output', value: 0 },
+          { id: 'out_4', name: 'Y4', type: 'output', value: 0 },
+          { id: 'out_5', name: 'Y5', type: 'output', value: 0 },
+          { id: 'out_6', name: 'Y6', type: 'output', value: 0 },
+          { id: 'out_7', name: 'Y7', type: 'output', value: 0 },
+        ];
+        break;
+      case 'MAG_COMP_4BIT':
+        label = '4-Bit Comparator';
+        inputs = [
+          { id: 'in_0', name: 'A0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'A1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'A2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'A3', type: 'input', value: 0 },
+          { id: 'in_4', name: 'B0', type: 'input', value: 0 },
+          { id: 'in_5', name: 'B1', type: 'input', value: 0 },
+          { id: 'in_6', name: 'B2', type: 'input', value: 0 },
+          { id: 'in_7', name: 'B3', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'A>B', type: 'output', value: 0 },
+          { id: 'out_1', name: 'A=B', type: 'output', value: 1 },
+          { id: 'out_2', name: 'A<B', type: 'output', value: 0 },
+        ];
+        break;
+      case 'PARITY_GEN':
+        label = 'Parity Gen (4-Bit)';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'PEVEN', type: 'output', value: 1 },
+          { id: 'out_1', name: 'PODD', type: 'output', value: 0 },
+        ];
+        break;
+      case 'ALU_4BIT':
+        label = '4-Bit ALU (74181)';
+        inputs = [
+          { id: 'in_0', name: 'A0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'A1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'A2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'A3', type: 'input', value: 0 },
+          { id: 'in_4', name: 'B0', type: 'input', value: 0 },
+          { id: 'in_5', name: 'B1', type: 'input', value: 0 },
+          { id: 'in_6', name: 'B2', type: 'input', value: 0 },
+          { id: 'in_7', name: 'B3', type: 'input', value: 0 },
+          { id: 'in_8', name: 'S0', type: 'input', value: 0 },
+          { id: 'in_9', name: 'S1', type: 'input', value: 0 },
+          { id: 'in_10', name: 'Cin', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'F0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'F1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'F2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'F3', type: 'output', value: 0 },
+          { id: 'out_4', name: 'Cout', type: 'output', value: 0 },
+          { id: 'out_5', name: 'Zero', type: 'output', value: 1 },
+        ];
+        break;
+      case 'DECADE_COUNTER':
+        label = 'Decade BCD Counter';
+        inputs = [
+          { id: 'in_0', name: 'CLK', type: 'input', value: 0 },
+          { id: 'in_1', name: 'RST', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Q0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Q1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Q2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Q3', type: 'output', value: 0 },
+          { id: 'out_4', name: 'RCO', type: 'output', value: 0 },
+        ];
+        state = { counterValue: 0, prevClock: 0 };
+        break;
+      case 'REGISTER_4BIT':
+        label = '4-Bit Register (74173)';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+          { id: 'in_4', name: 'CLK', type: 'input', value: 0 },
+          { id: 'in_5', name: 'LD', type: 'input', value: 1 },
+          { id: 'in_6', name: 'CLR', type: 'input', value: 0 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'Q0', type: 'output', value: 0 },
+          { id: 'out_1', name: 'Q1', type: 'output', value: 0 },
+          { id: 'out_2', name: 'Q2', type: 'output', value: 0 },
+          { id: 'out_3', name: 'Q3', type: 'output', value: 0 },
+        ];
+        state = { regValues: [0, 0, 0, 0], prevClock: 0 };
+        break;
+      case 'HEX_DISPLAY':
+        label = 'Hex Display';
+        inputs = [
+          { id: 'in_0', name: 'D0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'D2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'D3', type: 'input', value: 0 },
+        ];
+        outputs = [];
+        break;
+      case 'BAR_GRAPH':
+        label = '4-Bar Indicator';
+        inputs = [
+          { id: 'in_0', name: 'B0', type: 'input', value: 0 },
+          { id: 'in_1', name: 'B1', type: 'input', value: 0 },
+          { id: 'in_2', name: 'B2', type: 'input', value: 0 },
+          { id: 'in_3', name: 'B3', type: 'input', value: 0 },
+        ];
+        outputs = [];
+        break;
+      case 'BUZZER':
+        label = 'Buzzer';
+        inputs = [
+          { id: 'in_0', name: 'In', type: 'input', value: 0 },
+        ];
+        outputs = [];
         break;
       default:
         inputs = [
@@ -1429,19 +1646,22 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             <button
               onClick={() => setShowJumpSettings(s => !s)}
               title="Adjust Jump Bridge Size & Length"
-              className={`px-1.5 py-1 rounded-r-lg text-xs font-bold transition-all border-y border-r ${
-                wireJumpsEnabled
-                  ? 'bg-amber-500/30 text-amber-200 border-amber-500/40 hover:bg-amber-500/40'
-                  : 'text-slate-500 hover:bg-slate-800 border-slate-700/60'
+              className={`px-2 py-1 rounded-r-lg text-xs font-bold transition-all border-y border-r flex items-center gap-1 ${
+                showJumpSettings
+                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                  : wireJumpsEnabled
+                    ? 'bg-amber-500/30 text-amber-200 border-amber-500/40 hover:bg-amber-500/40'
+                    : 'text-slate-500 hover:bg-slate-800 border-slate-700/60'
               }`}
             >
-              ⚙
+              <span className="text-[10px] font-mono hidden sm:inline">H:{jumpBridgeSize} L:{jumpBridgeSpan * 2}</span>
+              <span>⚙</span>
             </button>
 
             {/* Jump Bridge Dimensions Customizer Popover */}
             {showJumpSettings && (
               <div 
-                className="absolute top-9 left-0 z-50 bg-slate-900/98 border border-amber-500/60 rounded-xl shadow-2xl p-3.5 min-w-[270px] backdrop-blur-md animate-in fade-in zoom-in-95"
+                className="fixed inset-x-4 top-16 md:absolute md:inset-x-auto md:top-9 md:left-0 z-50 bg-slate-900/98 border border-amber-500/60 rounded-xl shadow-2xl p-3.5 min-w-[270px] max-w-[340px] backdrop-blur-md animate-in fade-in zoom-in-95"
                 onClick={e => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2.5">
@@ -1737,11 +1957,17 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   { type: 'AND3' as GateType, label: 'AND-3', sub: '3-Input' },
                   { type: 'OR3' as GateType, label: 'OR-3', sub: '3-Input' },
                   { type: 'NAND3' as GateType, label: 'NAND-3', sub: '3-Input' },
+                  { type: 'NOR3' as GateType, label: 'NOR-3', sub: '3-Input' },
+                  { type: 'XOR3' as GateType, label: 'XOR-3', sub: '3-Input' },
+                  { type: 'AND4' as GateType, label: 'AND-4', sub: '4-Input' },
+                  { type: 'OR4' as GateType, label: 'OR-4', sub: '4-Input' },
+                  { type: 'NAND4' as GateType, label: 'NAND-4', sub: '4-Input' },
+                  { type: 'NOR4' as GateType, label: 'NOR-4', sub: '4-Input' },
                   { type: 'TRI_STATE' as GateType, label: 'Tri-State', sub: 'w/ Enable' },
                 ],
               },
               {
-                title: 'Arithmetic Circuits',
+                title: 'Arithmetic & ALU',
                 badge: 'MSI',
                 badgeColor: 'text-sky-400',
                 items: [
@@ -1749,7 +1975,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   { type: 'FULL_ADDER' as GateType, label: 'Full Adder', sub: 'A, B, Cin' },
                   { type: 'HALF_SUB' as GateType, label: 'Half Sub', sub: 'A, B -> D, B' },
                   { type: 'FULL_SUB' as GateType, label: 'Full Sub', sub: 'A, B, Bin' },
-                  { type: 'MAG_COMP_2BIT' as GateType, label: 'Comparator', sub: 'A>B, =, <' },
+                  { type: 'MAG_COMP_2BIT' as GateType, label: '2b Comp', sub: 'A>B, =, <' },
+                  { type: 'MAG_COMP_4BIT' as GateType, label: '4b Comp', sub: '7485 4-Bit' },
+                  { type: 'PARITY_GEN' as GateType, label: 'Parity Gen', sub: '74180 Even/Odd' },
+                  { type: 'ALU_4BIT' as GateType, label: '4-Bit ALU', sub: '74181 Arithmetic' },
                 ],
               },
               {
@@ -1759,33 +1988,41 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 items: [
                   { type: 'MUX_2TO1' as GateType, label: '2:1 MUX', sub: '2 Data, 1 Sel' },
                   { type: 'MUX_4TO1' as GateType, label: '4:1 MUX', sub: '4 Data, 2 Sel' },
+                  { type: 'MUX_8TO1' as GateType, label: '8:1 MUX', sub: '74151 8 Data, 3 Sel' },
                   { type: 'DEMUX_1TO2' as GateType, label: '1:2 DEMUX', sub: '1-to-2 Switch' },
                   { type: 'DEMUX_1TO4' as GateType, label: '1:4 DEMUX', sub: '1-to-4 Switch' },
                   { type: 'DECODER_2TO4' as GateType, label: '2:4 Decoder', sub: 'Active-High' },
+                  { type: 'DECODER_3TO8' as GateType, label: '3:8 Decoder', sub: '74138 Active-High' },
                   { type: 'PRIORITY_ENC_4TO2' as GateType, label: 'Priority Enc', sub: '4:2 w/ Valid' },
                 ],
               },
               {
-                title: 'Sequential & Counters',
-                badge: 'Clocked',
+                title: 'Sequential & Latches',
+                badge: 'Storage',
                 badgeColor: 'text-purple-400',
                 items: [
-                  { type: 'D_FF' as GateType, label: 'D Flip-Flop', sub: 'Data Latch' },
+                  { type: 'D_LATCH' as GateType, label: 'D Latch', sub: '7475 Transparent' },
+                  { type: 'D_FF' as GateType, label: 'D Flip-Flop', sub: 'Edge Triggered' },
                   { type: 'JK_FF' as GateType, label: 'JK Flip-Flop', sub: 'Universal' },
                   { type: 'T_FF' as GateType, label: 'T Flip-Flop', sub: 'Toggle Latch' },
                   { type: 'SR_FF' as GateType, label: 'SR Flip-Flop', sub: 'Set / Reset' },
+                  { type: 'REGISTER_4BIT' as GateType, label: '4-Bit Reg', sub: '74173 Parallel' },
                   { type: 'COUNTER_4BIT' as GateType, label: '4-Bit Counter', sub: '0-15 Binary' },
+                  { type: 'DECADE_COUNTER' as GateType, label: 'BCD Counter', sub: '7490 Mod-10' },
                   { type: 'SHIFT_REG_4BIT' as GateType, label: 'Shift Register', sub: '4-Bit SIPO' },
                 ],
               },
               {
-                title: 'Displays & Probes',
+                title: 'Displays & Indicators',
                 badge: 'Output',
                 badgeColor: 'text-rose-400',
                 items: [
                   { type: 'LED' as GateType, label: 'LED Lamp', sub: 'Logic Probe' },
                   { type: 'PROBE' as GateType, label: 'Digital Probe', sub: '0 / 1 / Z Readout' },
                   { type: 'SEVEN_SEG' as GateType, label: '7-Segment LED', sub: 'a..g Numerals' },
+                  { type: 'HEX_DISPLAY' as GateType, label: 'Hex Display', sub: '0-F Digital' },
+                  { type: 'BAR_GRAPH' as GateType, label: 'Bar Graph', sub: '4-Level Lit' },
+                  { type: 'BUZZER' as GateType, label: 'Buzzer', sub: 'Sound / Tone' },
                   { type: 'BCD_TO_7SEG' as GateType, label: 'BCD to 7-Seg', sub: '4-Bit Decoder' },
                 ],
               },
@@ -1814,7 +2051,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 </h4>
                 <div className="grid grid-cols-2 gap-1.5">
                   {sec.filteredItems.map(item => {
-                    const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'TRI_STATE'].includes(item.type);
+                    const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'NOR3', 'XOR3', 'AND4', 'OR4', 'NAND4', 'NOR4', 'TRI_STATE'].includes(item.type);
                     return (
                       <button
                         key={item.type}
@@ -1835,6 +2072,18 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                             <div className="w-2.5 h-3.5 rounded-sm border border-rose-500 bg-rose-500/20 text-[7px] flex items-center justify-center text-rose-300 font-bold shrink-0">
                               8
                             </div>
+                          ) : item.type === 'HEX_DISPLAY' ? (
+                            <div className="w-2.5 h-3.5 rounded-sm border border-cyan-400 bg-cyan-950 text-[7px] flex items-center justify-center text-cyan-300 font-mono font-bold shrink-0">
+                              F
+                            </div>
+                          ) : item.type === 'BAR_GRAPH' ? (
+                            <div className="w-2.5 h-3.5 rounded-sm flex flex-col justify-between py-0.5 shrink-0 bg-slate-950 border border-slate-700 px-0.5">
+                              <div className="h-0.5 bg-rose-500 rounded" />
+                              <div className="h-0.5 bg-amber-400 rounded" />
+                              <div className="h-0.5 bg-emerald-400 rounded" />
+                            </div>
+                          ) : item.type === 'BUZZER' ? (
+                            <span className="text-[10px] shrink-0 leading-none">🔊</span>
                           ) : item.type === 'CLOCK' ? (
                             <div className="text-[10px] font-mono text-cyan-400 shrink-0">~</div>
                           ) : item.type === 'SWITCH' || item.type === 'PUSH_BUTTON' ? (
@@ -2162,20 +2411,24 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             {simResult.nodes.map(node => {
               const isSelected = selectedNodeId === node.id;
               const isComment = node.type === 'COMMENT';
-              const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'TRI_STATE'].includes(node.type);
+              const isGate = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'NOR3', 'XOR3', 'AND4', 'OR4', 'NAND4', 'NOR4', 'TRI_STATE'].includes(node.type);
               const isSwitch = node.type === 'SWITCH' || node.type === 'CLOCK';
               const isPushButton = node.type === 'PUSH_BUTTON';
               const isConst = node.type === 'CONST_HIGH' || node.type === 'CONST_LOW';
               const isProbe = node.type === 'PROBE';
               const isSevenSeg = node.type === 'SEVEN_SEG';
-              const isCounter = node.type === 'COUNTER_4BIT';
+              const isHexDisplay = node.type === 'HEX_DISPLAY';
+              const isBarGraph = node.type === 'BAR_GRAPH';
+              const isBuzzer = node.type === 'BUZZER';
+              const isCounter = node.type === 'COUNTER_4BIT' || node.type === 'DECADE_COUNTER';
               const isShiftReg = node.type === 'SHIFT_REG_4BIT';
+              const isRegister = node.type === 'REGISTER_4BIT';
               const isLed = node.type === 'LED';
-              const isFF = node.type.endsWith('_FF');
+              const isFF = node.type.endsWith('_FF') || node.type === 'D_LATCH';
               const isMsi = [
                 'HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB',
-                'MUX_2TO1', 'MUX_4TO1', 'DEMUX_1TO2', 'DEMUX_1TO4',
-                'DECODER_2TO4', 'PRIORITY_ENC_4TO2', 'MAG_COMP_2BIT', 'BCD_TO_7SEG'
+                'MUX_2TO1', 'MUX_4TO1', 'MUX_8TO1', 'DEMUX_1TO2', 'DEMUX_1TO4',
+                'DECODER_2TO4', 'DECODER_3TO8', 'PRIORITY_ENC_4TO2', 'MAG_COMP_2BIT', 'MAG_COMP_4BIT', 'PARITY_GEN', 'ALU_4BIT', 'BCD_TO_7SEG'
               ].includes(node.type);
               const { width, height } = getNodeDimensions(node);
 
@@ -2537,6 +2790,117 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                           </text>
                         </g>
                       )}
+
+                      {/* 4-Bit Parallel Register Live Cells */}
+                      {isRegister && (
+                        <g className="select-none">
+                          <rect x={width / 2 - 42} y="44" width="84" height="34" rx="4" fill="#020617" stroke="#3b82f6" strokeWidth="1.5" />
+                          {[0, 1, 2, 3].map(i => {
+                            const v = node.state?.regValues?.[i] ?? 0;
+                            return (
+                              <g key={i} transform={`translate(${width / 2 - 38 + i * 20}, 47)`}>
+                                <rect width="17" height="28" rx="2" fill={v === 1 ? '#3b82f630' : '#1e293b'} stroke={v === 1 ? '#60a5fa' : '#334155'} strokeWidth="1" />
+                                <text x="8.5" y="18" fill={v === 1 ? '#93c5fd' : '#64748b'} fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="monospace">{v}</text>
+                              </g>
+                            );
+                          })}
+                          <text x={width / 2} y="90" fill="#60a5fa" fontSize="8" fontWeight="bold" textAnchor="middle">
+                            {'[D -> Q0 Q1 Q2 Q3]'}
+                          </text>
+                        </g>
+                      )}
+
+                      {/* Hexadecimal 7-Segment / Digit Display */}
+                      {isHexDisplay && (() => {
+                        const d0 = node.inputs[0]?.value === 1 ? 1 : 0;
+                        const d1 = node.inputs[1]?.value === 1 ? 2 : 0;
+                        const d2 = node.inputs[2]?.value === 1 ? 4 : 0;
+                        const d3 = node.inputs[3]?.value === 1 ? 8 : 0;
+                        const hexNum = d3 + d2 + d1 + d0;
+                        const hexChar = hexNum.toString(16).toUpperCase();
+
+                        return (
+                          <g className="select-none">
+                            <rect x={width / 2 - 24} y="24" width="48" height="52" rx="6" fill="#020617" stroke="#06b6d4" strokeWidth="2" />
+                            <text
+                              x={width / 2}
+                              y="62"
+                              fill="#22d3ee"
+                              fontSize="32"
+                              fontWeight="bold"
+                              fontFamily="monospace"
+                              textAnchor="middle"
+                              filter="drop-shadow(0 0 10px #06b6d4)"
+                            >
+                              {hexChar}
+                            </text>
+                            <text x={width / 2} y="88" fill="#94a3b8" fontSize="8" fontWeight="bold" textAnchor="middle">
+                              DEC: {hexNum}
+                            </text>
+                          </g>
+                        );
+                      })()}
+
+                      {/* 4-Bar LED Level Indicator */}
+                      {isBarGraph && (
+                        <g className="select-none">
+                          <rect x={width / 2 - 22} y="24" width="44" height="60" rx="4" fill="#020617" stroke="#334155" strokeWidth="1.5" />
+                          {[0, 1, 2, 3].map(i => {
+                            const lit = node.inputs[i]?.value === 1;
+                            const colors = ['#10b981', '#84cc16', '#f59e0b', '#ef4444'];
+                            const barColor = colors[i];
+                            return (
+                              <rect
+                                key={i}
+                                x={width / 2 - 18}
+                                y={66 - i * 13}
+                                width="36"
+                                height="9"
+                                rx="2"
+                                fill={lit ? barColor : '#1e293b'}
+                                stroke={lit ? '#ffffff' : '#334155'}
+                                strokeWidth="0.8"
+                                filter={lit ? `drop-shadow(0 0 6px ${barColor})` : undefined}
+                              />
+                            );
+                          })}
+                          <text x={width / 2} y="94" fill="#94a3b8" fontSize="7.5" fontWeight="bold" textAnchor="middle">
+                            BARS 0-3
+                          </text>
+                        </g>
+                      )}
+
+                      {/* Audio / Logic Buzzer Indicator */}
+                      {isBuzzer && (() => {
+                        const active = node.inputs[0]?.value === 1;
+                        return (
+                          <g className="select-none">
+                            <circle
+                              cx={width / 2}
+                              cy="44"
+                              r="18"
+                              fill={active ? '#f59e0b25' : '#0f172a'}
+                              stroke={active ? '#f59e0b' : '#475569'}
+                              strokeWidth="2"
+                              filter={active ? 'drop-shadow(0 0 10px #f59e0b)' : undefined}
+                            />
+                            {/* Speaker Icon */}
+                            <path
+                              d={`M ${width / 2 - 8} 40 L ${width / 2 - 4} 40 L ${width / 2 + 2} 33 L ${width / 2 + 2} 55 L ${width / 2 - 4} 48 L ${width / 2 - 8} 48 Z`}
+                              fill={active ? '#fbbf24' : '#64748b'}
+                            />
+                            {active && (
+                              <>
+                                <path d={`M ${width / 2 + 6} 39 A 6 6 0 0 1 ${width / 2 + 6} 49`} fill="none" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round" />
+                                <path d={`M ${width / 2 + 10} 35 A 11 11 0 0 1 ${width / 2 + 10} 53`} fill="none" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round" />
+                              </>
+                            )}
+                            <text x={width / 2} y="74" fill={active ? '#fbbf24' : '#94a3b8'} fontSize="8" fontWeight="bold" textAnchor="middle">
+                              {active ? '🔊 SOUND' : 'MUTED'}
+                            </text>
+                          </g>
+                        );
+                      })()}
 
                       {/* MSI Combinational ICs (Adders, Subtractors, MUX, Decoders, Comparators) */}
                       {isMsi && (
@@ -2981,6 +3345,81 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       <span className="text-[9px] text-slate-500 block mt-1">Select custom color to tag Power (Red), Data (Blue), Clock (Amber), etc.</span>
                     </div>
 
+                    {/* Wire Crossing Jump Bridge Settings */}
+                    <div className="pt-3 border-t border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] text-amber-400 uppercase font-semibold flex items-center gap-1">
+                          <span className="text-sm font-bold leading-none">⌒</span>
+                          <span>Wire Jump Crossover</span>
+                        </label>
+                        <button
+                          onClick={() => setWireJumpsEnabled(prev => !prev)}
+                          className={`text-[9px] px-2 py-0.5 rounded font-bold border transition-colors ${
+                            wireJumpsEnabled
+                              ? 'bg-amber-500 text-slate-950 border-amber-400'
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}
+                        >
+                          {wireJumpsEnabled ? 'ENABLED' : 'DISABLED'}
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-400">Bridge Height (Size):</span>
+                          <span className="font-mono text-amber-400 font-bold bg-slate-800 px-1 rounded">{jumpBridgeSize}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="4"
+                          max="22"
+                          value={jumpBridgeSize}
+                          onChange={e => setJumpBridgeSize(Number(e.target.value))}
+                          className="w-full accent-amber-500 cursor-pointer h-1.5"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-400">Bridge Span (Length):</span>
+                          <span className="font-mono text-cyan-400 font-bold bg-slate-800 px-1 rounded">{jumpBridgeSpan * 2}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="6"
+                          max="26"
+                          value={jumpBridgeSpan}
+                          onChange={e => setJumpBridgeSpan(Number(e.target.value))}
+                          className="w-full accent-cyan-500 cursor-pointer h-1.5"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 pt-1">
+                        {[
+                          { name: 'Small', h: 6, s: 7 },
+                          { name: 'Normal', h: 8, s: 10 },
+                          { name: 'Wide', h: 12, s: 15 },
+                          { name: 'Large', h: 16, s: 20 },
+                        ].map(p => (
+                          <button
+                            key={p.name}
+                            onClick={() => {
+                              setJumpBridgeSize(p.h);
+                              setJumpBridgeSpan(p.s);
+                              setToastMessage(`Jump Bridge: ${p.name}`);
+                            }}
+                            className={`py-0.5 rounded text-[9px] font-bold border transition-colors ${
+                              jumpBridgeSize === p.h && jumpBridgeSpan === p.s
+                                ? 'bg-amber-500 text-slate-950 border-amber-400'
+                                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="pt-3 border-t border-slate-800">
                       <button
                         onClick={() => {
@@ -3021,7 +3460,25 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             <span>{showPropertiesPanel ? 'Hide Props' : 'Properties'}</span>
           </button>
         )}
-        <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">Add:</span>
+        <button
+          onClick={() => setShowJumpSettings(s => !s)}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold shrink-0 border transition-all ${
+            showJumpSettings
+              ? 'bg-amber-500 text-slate-950 border-amber-400'
+              : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+          }`}
+          title="Adjust wire jump bridge height & length"
+        >
+          <span className="text-sm font-bold leading-none">⌒</span>
+          <span>Bridge ({jumpBridgeSize}×{jumpBridgeSpan * 2})</span>
+        </button>
+        <button
+          onClick={() => setShowMobilePaletteModal(true)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded bg-cyan-600/30 text-cyan-300 text-xs font-bold shrink-0 border border-cyan-500/50"
+        >
+          <span>+ All Components (47)</span>
+        </button>
+        <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">Quick:</span>
         <button
           onClick={() => addComponent('COMMENT')}
           className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-bold shrink-0 border border-amber-500/40"
@@ -3151,6 +3608,163 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               >
                 Clear Canvas
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile All-Components Picker Modal */}
+      {showMobilePaletteModal && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border-t border-slate-700 rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between p-3.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white">Digital Electronics Components (47)</h3>
+              </div>
+              <button
+                onClick={() => setShowMobilePaletteModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-3 border-b border-slate-800">
+              <input
+                type="text"
+                value={paletteSearch}
+                onChange={e => setPaletteSearch(e.target.value)}
+                placeholder="Search gates, ICs, flip-flops, displays..."
+                className="w-full px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-white border border-slate-700 focus:border-cyan-500 focus:outline-none placeholder:text-slate-500"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+              {(() => {
+                const q = paletteSearch.toLowerCase().trim();
+                const matches = (type: string, label: string, sub: string) => {
+                  if (!q) return true;
+                  return type.toLowerCase().includes(q) || label.toLowerCase().includes(q) || sub.toLowerCase().includes(q);
+                };
+
+                const mobileSections = [
+                  {
+                    title: 'Documentation & Notes',
+                    items: [
+                      { type: 'COMMENT' as GateType, label: 'Comment Box', sub: 'Drag & resize note' },
+                    ],
+                  },
+                  {
+                    title: 'Inputs & Power Sources',
+                    items: [
+                      { type: 'SWITCH' as GateType, label: 'Switch', sub: '0 / 1 Toggle' },
+                      { type: 'PUSH_BUTTON' as GateType, label: 'Push Button', sub: 'Tactile Click' },
+                      { type: 'CLOCK' as GateType, label: 'Clock', sub: '1 Hz Pulse' },
+                      { type: 'CONST_HIGH' as GateType, label: '+5V (VCC)', sub: 'Constant 1' },
+                      { type: 'CONST_LOW' as GateType, label: 'GND (0V)', sub: 'Constant 0' },
+                    ],
+                  },
+                  {
+                    title: 'Standard Logic Gates',
+                    items: [
+                      { type: 'AND' as GateType, label: 'AND', sub: '2-Input' },
+                      { type: 'OR' as GateType, label: 'OR', sub: '2-Input' },
+                      { type: 'NOT' as GateType, label: 'NOT', sub: 'Inverter' },
+                      { type: 'NAND' as GateType, label: 'NAND', sub: '2-Input' },
+                      { type: 'NOR' as GateType, label: 'NOR', sub: '2-Input' },
+                      { type: 'XOR' as GateType, label: 'XOR', sub: '2-Input' },
+                      { type: 'XNOR' as GateType, label: 'XNOR', sub: '2-Input' },
+                      { type: 'BUFFER' as GateType, label: 'Buffer', sub: 'Driver' },
+                      { type: 'AND3' as GateType, label: 'AND-3', sub: '3-Input' },
+                      { type: 'OR3' as GateType, label: 'OR-3', sub: '3-Input' },
+                      { type: 'NAND3' as GateType, label: 'NAND-3', sub: '3-Input' },
+                      { type: 'NOR3' as GateType, label: 'NOR-3', sub: '3-Input' },
+                      { type: 'XOR3' as GateType, label: 'XOR-3', sub: '3-Input' },
+                      { type: 'AND4' as GateType, label: 'AND-4', sub: '4-Input' },
+                      { type: 'OR4' as GateType, label: 'OR-4', sub: '4-Input' },
+                      { type: 'NAND4' as GateType, label: 'NAND-4', sub: '4-Input' },
+                      { type: 'NOR4' as GateType, label: 'NOR-4', sub: '4-Input' },
+                      { type: 'TRI_STATE' as GateType, label: 'Tri-State', sub: 'w/ Enable' },
+                    ],
+                  },
+                  {
+                    title: 'Arithmetic & ALU',
+                    items: [
+                      { type: 'HALF_ADDER' as GateType, label: 'Half Adder', sub: 'A, B -> S, C' },
+                      { type: 'FULL_ADDER' as GateType, label: 'Full Adder', sub: 'A, B, Cin' },
+                      { type: 'HALF_SUB' as GateType, label: 'Half Sub', sub: 'A, B -> D, B' },
+                      { type: 'FULL_SUB' as GateType, label: 'Full Sub', sub: 'A, B, Bin' },
+                      { type: 'MAG_COMP_2BIT' as GateType, label: '2b Comp', sub: 'A>B, =, <' },
+                      { type: 'MAG_COMP_4BIT' as GateType, label: '4b Comp', sub: '7485 4-Bit' },
+                      { type: 'PARITY_GEN' as GateType, label: 'Parity Gen', sub: '74180 Even/Odd' },
+                      { type: 'ALU_4BIT' as GateType, label: '4-Bit ALU', sub: '74181 Arithmetic' },
+                    ],
+                  },
+                  {
+                    title: 'Multiplexers & Decoders',
+                    items: [
+                      { type: 'MUX_2TO1' as GateType, label: '2:1 MUX', sub: '2 Data, 1 Sel' },
+                      { type: 'MUX_4TO1' as GateType, label: '4:1 MUX', sub: '4 Data, 2 Sel' },
+                      { type: 'MUX_8TO1' as GateType, label: '8:1 MUX', sub: '74151 8 Data, 3 Sel' },
+                      { type: 'DEMUX_1TO2' as GateType, label: '1:2 DEMUX', sub: '1-to-2 Switch' },
+                      { type: 'DEMUX_1TO4' as GateType, label: '1:4 DEMUX', sub: '1-to-4 Switch' },
+                      { type: 'DECODER_2TO4' as GateType, label: '2:4 Decoder', sub: 'Active-High' },
+                      { type: 'DECODER_3TO8' as GateType, label: '3:8 Decoder', sub: '74138 Active-High' },
+                      { type: 'PRIORITY_ENC_4TO2' as GateType, label: 'Priority Enc', sub: '4:2 w/ Valid' },
+                    ],
+                  },
+                  {
+                    title: 'Sequential & Latches',
+                    items: [
+                      { type: 'D_LATCH' as GateType, label: 'D Latch', sub: '7475 Transparent' },
+                      { type: 'D_FF' as GateType, label: 'D Flip-Flop', sub: 'Edge Triggered' },
+                      { type: 'JK_FF' as GateType, label: 'JK Flip-Flop', sub: 'Universal' },
+                      { type: 'T_FF' as GateType, label: 'T Flip-Flop', sub: 'Toggle Latch' },
+                      { type: 'SR_FF' as GateType, label: 'SR Flip-Flop', sub: 'Set / Reset' },
+                      { type: 'REGISTER_4BIT' as GateType, label: '4-Bit Reg', sub: '74173 Parallel' },
+                      { type: 'COUNTER_4BIT' as GateType, label: '4-Bit Counter', sub: '0-15 Binary' },
+                      { type: 'DECADE_COUNTER' as GateType, label: 'BCD Counter', sub: '7490 Mod-10' },
+                      { type: 'SHIFT_REG_4BIT' as GateType, label: 'Shift Register', sub: '4-Bit SIPO' },
+                    ],
+                  },
+                  {
+                    title: 'Displays & Indicators',
+                    items: [
+                      { type: 'LED' as GateType, label: 'LED Lamp', sub: 'Logic Probe' },
+                      { type: 'PROBE' as GateType, label: 'Digital Probe', sub: '0 / 1 / Z Readout' },
+                      { type: 'SEVEN_SEG' as GateType, label: '7-Segment LED', sub: 'a..g Numerals' },
+                      { type: 'HEX_DISPLAY' as GateType, label: 'Hex Display', sub: '0-F Digital' },
+                      { type: 'BAR_GRAPH' as GateType, label: 'Bar Graph', sub: '4-Level Lit' },
+                      { type: 'BUZZER' as GateType, label: 'Buzzer', sub: 'Sound / Tone' },
+                      { type: 'BCD_TO_7SEG' as GateType, label: 'BCD to 7-Seg', sub: '4-Bit Decoder' },
+                    ],
+                  },
+                ];
+
+                return mobileSections.map(sec => {
+                  const filtered = sec.items.filter(item => matches(item.type, item.label, item.sub));
+                  if (filtered.length === 0) return null;
+                  return (
+                    <div key={sec.title} className="space-y-1.5">
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{sec.title}</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {filtered.map(item => (
+                          <button
+                            key={item.type}
+                            onClick={() => {
+                              addComponent(item.type);
+                              setShowMobilePaletteModal(false);
+                            }}
+                            className="p-2 rounded-lg bg-slate-800 text-left border border-slate-700/80 active:bg-cyan-950 transition-colors"
+                          >
+                            <div className="font-bold text-xs text-white truncate">{item.label}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{item.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
