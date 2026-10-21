@@ -1527,38 +1527,28 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     setStartResizeDim({ width: currentWidth, height: currentHeight });
   };
 
-  // Bidirectional Port MouseDown: initiates wire connection without dragging parent node
-  const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, portIndex: number, type: 'input' | 'output') => {
-    e.stopPropagation();
-
-    const coords = getCanvasCoords(e.clientX, e.clientY);
-    setMousePos(coords);
-
-    if (!wireStart) {
-      setWireStart({ nodeId, portIndex, type });
-      setEditorMode('WIRE');
-    }
-  };
-
-  // Bidirectional Port MouseUp / Click: completes wire connection
-  const handlePortClickOrUp = (e: React.MouseEvent, targetNodeId: string, targetPortIndex: number, targetType: 'input' | 'output') => {
-    e.stopPropagation();
-
+  // Unified Port Connection Execution for Mouse & Mobile Touch
+  const executePortConnection = (targetNodeId: string, targetPortIndex: number, targetType: 'input' | 'output') => {
     if (!wireStart) {
       setWireStart({ nodeId: targetNodeId, portIndex: targetPortIndex, type: targetType });
       setEditorMode('WIRE');
       const startNode = circuit.nodes.find(n => n.id === targetNodeId);
-      setToastMessage(`Started wire from ${startNode?.label || targetNodeId}. Click or drop on any ${targetType === 'output' ? 'INPUT' : 'OUTPUT'} pin to connect.`);
+      try { navigator.vibrate?.(25); } catch {}
+      setToastMessage(`Started wire from ${startNode?.label || targetNodeId} (${targetType.toUpperCase()}). Tap any ${targetType === 'output' ? 'INPUT (left)' : 'OUTPUT (right)'} pin to connect.`);
       return;
     }
 
+    // Tapping the same pin cancels wiring
     if (wireStart.nodeId === targetNodeId && wireStart.portIndex === targetPortIndex && wireStart.type === targetType) {
       setWireStart(null);
+      setHoveredPort(null);
       setToastMessage('Wiring cancelled.');
       return;
     }
 
+    // Invalid port pairing: input to input, or output to output
     if (wireStart.type === targetType) {
+      try { navigator.vibrate?.([40, 60, 40]); } catch {}
       setToastMessage(`Cannot connect ${targetType.toUpperCase()} to ${targetType.toUpperCase()}. Please connect an OUTPUT pin to an INPUT pin.`);
       return;
     }
@@ -1596,9 +1586,48 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       wires: updatedWires,
     });
 
+    try { navigator.vibrate?.([30, 40, 30]); } catch {}
     setWireStart(null);
     setHoveredPort(null);
     setToastMessage(`Wire connected: ${fromNode?.label || 'Out'} → ${toNode?.label || 'In'}`);
+  };
+
+  // Bidirectional Port MouseDown: initiates wire connection without dragging parent node
+  const handlePortMouseDown = (e: React.MouseEvent, nodeId: string, portIndex: number, type: 'input' | 'output') => {
+    e.stopPropagation();
+
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    setMousePos(coords);
+
+    if (!wireStart) {
+      executePortConnection(nodeId, portIndex, type);
+    }
+  };
+
+  // Bidirectional Port MouseUp / Click: completes wire connection
+  const handlePortClickOrUp = (e: React.MouseEvent, targetNodeId: string, targetPortIndex: number, targetType: 'input' | 'output') => {
+    e.stopPropagation();
+    executePortConnection(targetNodeId, targetPortIndex, targetType);
+  };
+
+  // Mobile Port TouchStart: dedicated mobile touch handler
+  const handlePortTouchStart = (e: React.TouchEvent, nodeId: string, portIndex: number, type: 'input' | 'output') => {
+    e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
+
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch.clientX, touch.clientY);
+    setMousePos(coords);
+
+    executePortConnection(nodeId, portIndex, type);
+  };
+
+  // Mobile Port TouchEnd: for drag-and-drop wire release directly onto target port
+  const handlePortTouchEnd = (e: React.TouchEvent, nodeId: string, portIndex: number, type: 'input' | 'output') => {
+    e.stopPropagation();
+    if (wireStart && (wireStart.nodeId !== nodeId || wireStart.portIndex !== portIndex || wireStart.type !== type)) {
+      executePortConnection(nodeId, portIndex, type);
+    }
   };
 
   // Canvas Mouse events for Dragging, Resizing & Panning
@@ -1679,6 +1708,23 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       const coords = getCanvasCoords(touch.clientX, touch.clientY);
       setMousePos(coords);
 
+      // If dragging a wire on mobile touch, check what element is underneath finger
+      if (wireStart) {
+        const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+        const portElem = elem?.closest?.('[data-is-port="true"]');
+        if (portElem) {
+          const hoverNodeId = portElem.getAttribute('data-node-id');
+          const hoverPortIndex = parseInt(portElem.getAttribute('data-port-index') || '0', 10);
+          const hoverType = portElem.getAttribute('data-port-type') as 'input' | 'output';
+          if (hoverNodeId && hoverType) {
+            setHoveredPort({ nodeId: hoverNodeId, portIndex: hoverPortIndex, type: hoverType });
+          }
+        } else {
+          setHoveredPort(null);
+        }
+        return;
+      }
+
       if (resizingNodeId) {
         const dx = (touch.clientX - startResizeMouse.x) / zoom;
         const dy = (touch.clientY - startResizeMouse.y) / zoom;
@@ -1720,6 +1766,13 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   };
 
   const handleTouchEnd = () => {
+    // If user dragged a wire and released over a destination port, connect immediately!
+    if (wireStart && hoveredPort) {
+      if (hoveredPort.nodeId !== wireStart.nodeId || hoveredPort.portIndex !== wireStart.portIndex || hoveredPort.type !== wireStart.type) {
+        executePortConnection(hoveredPort.nodeId, hoveredPort.portIndex, hoveredPort.type);
+        return;
+      }
+    }
     handleMouseUp();
   };
 
@@ -1745,6 +1798,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     if (e.target === svgRef.current) {
       if (wireStart) {
         setWireStart(null);
+        setHoveredPort(null);
         setToastMessage('Wiring cancelled.');
       }
       setSelectedNodeId(null);
@@ -1753,6 +1807,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   };
 
   const handleNodeDragStart = (e: React.MouseEvent, nodeId: string) => {
+    if (wireStart) return;
     e.stopPropagation();
     setSelectedNodeId(nodeId);
     setSelectedWireId(null);
@@ -1769,11 +1824,39 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
   const handleNodeTouchStart = (e: React.TouchEvent, nodeId: string) => {
     if (e.touches.length !== 1) return;
+    const node = circuit.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // While wiring is in progress, do not drag the node!
+    // Check if user tapped near any compatible port of this node to auto-connect!
+    if (wireStart) {
+      e.stopPropagation();
+      const touch = e.touches[0];
+      const coords = getCanvasCoords(touch.clientX, touch.clientY);
+      const compatibleType = wireStart.type === 'output' ? 'input' : 'output';
+      const ports = compatibleType === 'input' ? node.inputs : node.outputs;
+      if (ports.length > 0 && node.id !== wireStart.nodeId) {
+        let closestIdx = 0;
+        let minDist = Infinity;
+        ports.forEach((_, idx) => {
+          const pCoord = getPortCoordinates(node, idx, compatibleType);
+          const dist = Math.hypot(coords.x - pCoord.x, coords.y - pCoord.y);
+          if (dist < minDist) {
+            minDist = dist;
+            closestIdx = idx;
+          }
+        });
+        if (minDist < 90) {
+          executePortConnection(node.id, closestIdx, compatibleType);
+          return;
+        }
+      }
+      return;
+    }
+
     e.stopPropagation();
     setSelectedNodeId(nodeId);
     setSelectedWireId(null);
-    const node = circuit.nodes.find(n => n.id === nodeId);
-    if (!node) return;
 
     const touch = e.touches[0];
     const coords = getCanvasCoords(touch.clientX, touch.clientY);
@@ -2531,20 +2614,29 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
           {/* Wire Mode In-Progress Floating Banner */}
           {wireStart && (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-full bg-emerald-500 text-slate-950 font-bold px-5 py-2 text-xs shadow-2xl flex items-center gap-2.5 animate-bounce">
-              <Cable className="h-4 w-4" />
-              <span>
-                Wiring from {circuit.nodes.find(n => n.id === wireStart.nodeId)?.label} ({wireStart.type.toUpperCase()}) — Click or drop on any {wireStart.type === 'output' ? 'INPUT' : 'OUTPUT'} pin
-              </span>
+            <div className="absolute top-3 md:bottom-5 md:top-auto left-1/2 -translate-x-1/2 z-40 max-w-[94vw] rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white font-bold px-4 py-2 text-xs shadow-2xl flex items-center justify-between gap-3 border border-emerald-400/40 backdrop-blur-md">
+              <div className="flex items-center gap-2 truncate">
+                <Cable className="h-4 w-4 shrink-0 text-emerald-200 animate-pulse" />
+                <span className="truncate">
+                  Connecting <span className="text-emerald-100 font-extrabold underline">{circuit.nodes.find(n => n.id === wireStart.nodeId)?.label || 'Node'}</span> ({wireStart.type.toUpperCase()}) → Tap glowing <span className="text-amber-200 uppercase">{wireStart.type === 'output' ? 'INPUT' : 'OUTPUT'}</span> pin
+                </span>
+              </div>
               <button 
                 onClick={e => {
                   e.stopPropagation();
                   setWireStart(null);
+                  setHoveredPort(null);
                   setToastMessage('Wiring cancelled.');
                 }}
-                className="ml-3 px-2 py-0.5 rounded-full bg-slate-900/20 hover:bg-slate-900/40 text-[10px] font-bold text-slate-950"
+                onTouchStart={e => {
+                  e.stopPropagation();
+                  setWireStart(null);
+                  setHoveredPort(null);
+                  setToastMessage('Wiring cancelled.');
+                }}
+                className="shrink-0 px-3 py-1 rounded-full bg-slate-950/80 hover:bg-slate-950 text-white text-[11px] font-bold border border-slate-700/60 active:scale-95 transition-all shadow"
               >
-                Cancel (Esc)
+                ✕ Cancel
               </button>
             </div>
           )}
@@ -3470,26 +3562,42 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                         const pColor = pVal === 1 ? '#10b981' : pVal === 0 ? '#64748b' : '#eab308';
                         const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portIndex === pIdx && hoveredPort?.type === 'input';
                         const isStart = wireStart?.nodeId === node.id && wireStart?.portIndex === pIdx && wireStart?.type === 'input';
+                        const isValidTarget = wireStart && wireStart.type === 'output' && wireStart.nodeId !== node.id;
 
                         return (
                           <g key={port.id} className="group">
+                            {/* Glowing Target Beacon when this input can receive the active wire */}
+                            {isValidTarget && (
+                              <circle
+                                cx={localX}
+                                cy={localY}
+                                r="16"
+                                fill="#10b981"
+                                fillOpacity="0.25"
+                                stroke="#10b981"
+                                strokeWidth="2.5"
+                                strokeDasharray="3 2"
+                                className="animate-pulse pointer-events-none"
+                              />
+                            )}
+
                             {(isHovered || isStart) && (
                               <circle
                                 cx={localX}
                                 cy={localY}
-                                r="10"
+                                r="14"
                                 fill="none"
-                                stroke="#10b981"
+                                stroke="#38bdf8"
                                 strokeWidth="2.5"
-                                className="animate-ping opacity-75"
+                                className="animate-ping opacity-85 pointer-events-none"
                               />
                             )}
 
                             <circle
                               cx={localX}
                               cy={localY}
-                              r={isHovered ? 6 : 4.5}
-                              fill={pColor}
+                              r={isHovered || isStart ? 6.5 : isValidTarget ? 5.5 : 4.5}
+                              fill={isStart ? '#38bdf8' : isValidTarget ? '#34d399' : pColor}
                               stroke="#0f172a"
                               strokeWidth="2"
                               className="transition-all"
@@ -3498,23 +3606,31 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                             <text
                               x={localX + 8}
                               y={localY + 3.5}
-                              fill="#94a3b8"
+                              fill={isValidTarget ? '#34d399' : '#94a3b8'}
                               fontSize="8.5"
                               fontFamily="monospace"
-                              fontWeight="bold"
+                              fontWeight={isValidTarget ? 'bold' : 'normal'}
                             >
                               {port.name || `In${pIdx + 1}`}
                             </text>
 
+                            {/* Generous Hit Circle for Mobile Touch & Mouse (48px diameter) */}
                             <circle
                               cx={localX}
                               cy={localY}
-                              r="16"
+                              r="24"
                               fill="transparent"
                               className="cursor-crosshair"
+                              data-is-port="true"
+                              data-node-id={node.id}
+                              data-port-index={pIdx}
+                              data-port-type="input"
+                              style={{ pointerEvents: 'all', touchAction: 'none' }}
                               onMouseDown={e => handlePortMouseDown(e, node.id, pIdx, 'input')}
                               onMouseUp={e => handlePortClickOrUp(e, node.id, pIdx, 'input')}
                               onClick={e => handlePortClickOrUp(e, node.id, pIdx, 'input')}
+                              onTouchStart={e => handlePortTouchStart(e, node.id, pIdx, 'input')}
+                              onTouchEnd={e => handlePortTouchEnd(e, node.id, pIdx, 'input')}
                               onMouseEnter={() => setHoveredPort({ nodeId: node.id, portIndex: pIdx, type: 'input' })}
                               onMouseLeave={() => setHoveredPort(null)}
                             />
@@ -3531,26 +3647,42 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                         const pColor = pVal === 1 ? '#10b981' : pVal === 0 ? '#64748b' : '#eab308';
                         const isHovered = hoveredPort?.nodeId === node.id && hoveredPort?.portIndex === pIdx && hoveredPort?.type === 'output';
                         const isStart = wireStart?.nodeId === node.id && wireStart?.portIndex === pIdx && wireStart?.type === 'output';
+                        const isValidTarget = wireStart && wireStart.type === 'input' && wireStart.nodeId !== node.id;
 
                         return (
                           <g key={port.id} className="group">
+                            {/* Glowing Target Beacon when this output can connect to the active input wire */}
+                            {isValidTarget && (
+                              <circle
+                                cx={localX}
+                                cy={localY}
+                                r="16"
+                                fill="#38bdf8"
+                                fillOpacity="0.25"
+                                stroke="#38bdf8"
+                                strokeWidth="2.5"
+                                strokeDasharray="3 2"
+                                className="animate-pulse pointer-events-none"
+                              />
+                            )}
+
                             {(isHovered || isStart) && (
                               <circle
                                 cx={localX}
                                 cy={localY}
-                                r="10"
+                                r="14"
                                 fill="none"
-                                stroke="#10b981"
+                                stroke="#38bdf8"
                                 strokeWidth="2.5"
-                                className="animate-ping opacity-75"
+                                className="animate-ping opacity-85 pointer-events-none"
                               />
                             )}
 
                             <circle
                               cx={localX}
                               cy={localY}
-                              r={isHovered ? 6 : 4.5}
-                              fill={pColor}
+                              r={isHovered || isStart ? 6.5 : isValidTarget ? 5.5 : 4.5}
+                              fill={isStart ? '#38bdf8' : isValidTarget ? '#38bdf8' : pColor}
                               stroke="#0f172a"
                               strokeWidth="2"
                               className="transition-all"
@@ -3559,24 +3691,32 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                             <text
                               x={localX - 8}
                               y={localY + 3.5}
-                              fill="#94a3b8"
+                              fill={isValidTarget ? '#38bdf8' : '#94a3b8'}
                               fontSize="8.5"
                               fontFamily="monospace"
-                              fontWeight="bold"
+                              fontWeight={isValidTarget ? 'bold' : 'normal'}
                               textAnchor="end"
                             >
                               {port.name || 'Out'}
                             </text>
 
+                            {/* Generous Hit Circle for Mobile Touch & Mouse (48px diameter) */}
                             <circle
                               cx={localX}
                               cy={localY}
-                              r="16"
+                              r="24"
                               fill="transparent"
                               className="cursor-crosshair"
+                              data-is-port="true"
+                              data-node-id={node.id}
+                              data-port-index={pIdx}
+                              data-port-type="output"
+                              style={{ pointerEvents: 'all', touchAction: 'none' }}
                               onMouseDown={e => handlePortMouseDown(e, node.id, pIdx, 'output')}
                               onMouseUp={e => handlePortClickOrUp(e, node.id, pIdx, 'output')}
                               onClick={e => handlePortClickOrUp(e, node.id, pIdx, 'output')}
+                              onTouchStart={e => handlePortTouchStart(e, node.id, pIdx, 'output')}
+                              onTouchEnd={e => handlePortTouchEnd(e, node.id, pIdx, 'output')}
                               onMouseEnter={() => setHoveredPort({ nodeId: node.id, portIndex: pIdx, type: 'output' })}
                               onMouseLeave={() => setHoveredPort(null)}
                             />
