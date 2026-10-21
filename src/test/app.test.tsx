@@ -37,4 +37,22 @@ describe('DE-Lab Pro App Integration Tests', () => {
     fireEvent.click(numButtons[0]);
     expect(screen.getAllByText(/Number Systems & Arithmetic/i).length).toBeGreaterThan(0);
   });
+
+  it('renders sidebar navigation menu with all core modules and headers', () => {
+    render(<App />);
+    // Check section titles
+    expect(screen.getByText('OVERVIEW')).toBeDefined();
+    expect(screen.getByText('CORE SIMULATION')).toBeDefined();
+    expect(screen.getByText('BOOLEAN ANALYSIS')).toBeDefined();
+    expect(screen.getByText('CIRCUIT FAMILIES')).toBeDefined();
+    expect(screen.getByText('TOOLS & ARITHMETIC')).toBeDefined();
+    expect(screen.getByText('EDUCATION & WORKSPACE')).toBeDefined();
+
+    // Check specific module labels in sidebar
+    expect(screen.getAllByText('Circuit Builder').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Karnaugh Maps').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Truth Tables').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Learning & Quizzes').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Project Vault').length).toBeGreaterThan(0);
+  });
 });
