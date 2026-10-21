@@ -271,23 +271,28 @@ export interface BinarySubtractionResult {
 }
 
 export function subtractBinary(binA: string, binB: string, bitWidth: number = 8): BinarySubtractionResult {
-  const decA = parseInt(binA.replace(/[^01]/g, '') || '0', 2);
-  const decB = parseInt(binB.replace(/[^01]/g, '') || '0', 2);
+  const cleanA = binA.replace(/[^01]/g, '') || '0';
+  const cleanB = binB.replace(/[^01]/g, '') || '0';
+  const decA = parseInt(cleanA, 2);
+  const decB = parseInt(cleanB, 2);
   const diffDec = decA - decB;
 
+  // Ensure bit width can accommodate both operands and signed extension
+  const actualBitWidth = Math.max(bitWidth, cleanA.length + 1, cleanB.length + 1);
+
   // 2's complement of B in given bitWidth
-  const bPadded = decB.toString(2).padStart(bitWidth, '0');
+  const bPadded = decB.toString(2).padStart(actualBitWidth, '0');
   const bInv = bPadded.split('').map(b => (b === '0' ? '1' : '0')).join('');
-  const bTwos = ((parseInt(bInv, 2) + 1) & ((1 << bitWidth) - 1)).toString(2).padStart(bitWidth, '0');
+  const bTwos = ((parseInt(bInv, 2) + 1) % Math.pow(2, actualBitWidth)).toString(2).padStart(actualBitWidth, '0');
 
   // Addition of A and (-B) in 2's complement
-  const aPadded = decA.toString(2).padStart(bitWidth, '0');
+  const aPadded = decA.toString(2).padStart(actualBitWidth, '0');
   const sumInt = parseInt(aPadded, 2) + parseInt(bTwos, 2);
   const sumBin = sumInt.toString(2);
 
   const steps = [
-    `1. Represent A (${decA}₁₀) in ${bitWidth}-bit: ${aPadded}₂`,
-    `2. Represent B (${decB}₁₀) in ${bitWidth}-bit: ${bPadded}₂`,
+    `1. Represent A (${decA}₁₀) in ${actualBitWidth}-bit: ${aPadded}₂`,
+    `2. Represent B (${decB}₁₀) in ${actualBitWidth}-bit: ${bPadded}₂`,
     `3. Compute 2's complement of B: Invert (${bInv}₂) + 1 = ${bTwos}₂`,
     `4. Add A + (2's complement of B): ${aPadded} + ${bTwos} = ${sumBin}₂`,
   ];
@@ -295,7 +300,7 @@ export function subtractBinary(binA: string, binB: string, bitWidth: number = 8)
   if (diffDec >= 0) {
     steps.push(`5. Carry-out of 1 is discarded in 2's complement subtraction. Result is positive: ${diffDec.toString(2)}₂ (${diffDec}₁₀).`);
   } else {
-    steps.push(`5. No carry-out generated, indicating negative result. Result in 2's complement is ${sumBin.slice(-bitWidth)}₂ (${diffDec}₁₀).`);
+    steps.push(`5. No carry-out generated, indicating negative result. Result in 2's complement is ${sumBin.slice(-actualBitWidth)}₂ (${diffDec}₁₀).`);
   }
 
   return {

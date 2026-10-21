@@ -1578,7 +1578,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const selectedWire = circuit.wires.find(w => w.id === selectedWireId);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-slate-950 overflow-hidden relative select-none">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] sm:h-[calc(100vh-4rem)] bg-slate-950 overflow-hidden relative select-none">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-slate-900 border border-emerald-500/50 text-emerald-400 px-4 py-2.5 text-xs font-bold shadow-2xl flex items-center gap-2.5 backdrop-blur-md animate-in fade-in slide-in-from-top-2">
@@ -1637,6 +1637,16 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800"
           >
             <RotateCcw className="h-4 w-4" />
+          </button>
+
+          {/* Mobile Component Menu Button */}
+          <button
+            onClick={() => setShowMobilePaletteModal(true)}
+            className="md:hidden flex items-center gap-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-500/40 active:bg-cyan-600/50 text-cyan-200 border border-cyan-500/50 px-2.5 py-1 text-xs font-bold transition-all active:scale-95 shadow-sm"
+            title="Open Component Box / Add Components"
+          >
+            <Cpu className="h-4 w-4 text-cyan-400" />
+            <span>+ Components</span>
           </button>
         </div>
 
@@ -2278,6 +2288,19 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           onTouchEnd={handleTouchEnd}
           onClick={handleCanvasClick}
         >
+          {/* Mobile Canvas Floating Action Button for Component Box */}
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              setShowMobilePaletteModal(true);
+            }}
+            className="md:hidden absolute bottom-5 left-4 z-30 flex items-center gap-2 px-3.5 py-2 rounded-full bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-bold text-xs shadow-2xl border border-cyan-400/60 active:scale-95 transition-all shadow-cyan-950/70"
+            title="Open Component Box"
+          >
+            <Cpu className="h-4 w-4 text-cyan-200" />
+            <span>+ Components</span>
+          </button>
+
           {/* Diagnostic Warnings Banner */}
           {simResult.warnings.length > 0 && (
             <div className="absolute top-2 left-4 right-4 z-10 rounded-lg bg-amber-500/15 border border-amber-500/40 px-3 py-1.5 text-xs text-amber-300 flex items-center justify-between shadow-lg backdrop-blur-sm">
@@ -3871,12 +3894,18 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
       {/* Mobile All-Components Picker Modal */}
       {showMobilePaletteModal && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border-t border-slate-700 rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+        <div 
+          onClick={() => setShowMobilePaletteModal(false)}
+          className="fixed inset-0 z-50 flex flex-col justify-end md:hidden bg-black/70 backdrop-blur-sm"
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            className="bg-slate-900 border-t border-slate-700 rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200"
+          >
             <div className="flex items-center justify-between p-3.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Cpu className="h-4 w-4 text-cyan-400" />
-                <h3 className="text-sm font-bold text-white">Components & Electronics (57)</h3>
+                <h3 className="text-sm font-bold text-white">Component Box &amp; Electronics</h3>
               </div>
               <button
                 onClick={() => setShowMobilePaletteModal(false)}
