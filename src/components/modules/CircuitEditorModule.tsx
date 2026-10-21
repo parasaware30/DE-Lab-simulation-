@@ -671,6 +671,13 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [startPanMouse, setStartPanMouse] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pinchRef = useRef<{
+    initialDist: number;
+    initialZoom: number;
+    initialPan: { x: number; y: number };
+    midX: number;
+    midY: number;
+  } | null>(null);
 
   // Node Dragging
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
@@ -1630,6 +1637,66 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     }
   };
 
+  // Zoom and Viewport Actions
+  const handleZoomIn = () => setZoom(z => Math.min(3.0, Number((z + 0.1).toFixed(2))));
+  const handleZoomOut = () => setZoom(z => Math.max(0.3, Number((z - 0.1).toFixed(2))));
+  const handleResetZoom = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setToastMessage('Zoom reset to 100%');
+  };
+
+  const handleFitToScreen = () => {
+    if (circuit.nodes.length === 0) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setToastMessage('View reset to 100%');
+      return;
+    }
+
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const containerW = rect.width || 800;
+    const containerH = rect.height || 600;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    circuit.nodes.forEach(n => {
+      const w = n.width || 120;
+      const h = n.height || 70;
+      minX = Math.min(minX, n.x - 30);
+      minY = Math.min(minY, n.y - 30);
+      maxX = Math.max(maxX, n.x + w + 30);
+      maxY = Math.max(maxY, n.y + h + 30);
+    });
+
+    const circuitW = maxX - minX;
+    const circuitH = maxY - minY;
+
+    if (circuitW <= 0 || circuitH <= 0) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+
+    const padding = 40;
+    const scaleX = (containerW - padding * 2) / circuitW;
+    const scaleY = (containerH - padding * 2) / circuitH;
+    const optimalZoom = Math.max(0.35, Math.min(1.5, Math.min(scaleX, scaleY)));
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const newPanX = containerW / 2 - centerX * optimalZoom;
+    const newPanY = containerH / 2 - centerY * optimalZoom;
+
+    setZoom(Number(optimalZoom.toFixed(2)));
+    setPan({ x: Math.round(newPanX), y: Math.round(newPanY) });
+    setToastMessage(`Fitted to screen (${Math.round(optimalZoom * 100)}%)`);
+  };
+
   // Canvas Mouse events for Dragging, Resizing & Panning
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || e.altKey || (editorMode === 'SELECT' && e.target === svgRef.current)) {
@@ -1692,17 +1759,55 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         setStartPanMouse({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
       }
     } else if (e.touches.length === 2) {
+      // Two-Finger Pinch-to-Zoom Gesture Initialization
       setDraggingNodeId(null);
       setIsPanning(true);
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
+      const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
       const midX = (touch1.clientX + touch2.clientX) / 2;
       const midY = (touch1.clientY + touch2.clientY) / 2;
+
+      pinchRef.current = {
+        initialDist: dist,
+        initialZoom: zoom,
+        initialPan: { x: pan.x, y: pan.y },
+        midX,
+        midY,
+      };
       setStartPanMouse({ x: midX - pan.x, y: midY - pan.y });
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // Two-Finger Pinch-to-Zoom & Pan Gesture
+    if (e.touches.length === 2) {
+      if (pinchRef.current && svgRef.current) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        const currentMidX = (touch1.clientX + touch2.clientX) / 2;
+        const currentMidY = (touch1.clientY + touch2.clientY) / 2;
+
+        const { initialDist, initialZoom, initialPan, midX: startMidX, midY: startMidY } = pinchRef.current;
+        if (initialDist > 8) {
+          const scale = currentDist / initialDist;
+          const newZoom = Math.max(0.25, Math.min(3.0, Number((initialZoom * scale).toFixed(3))));
+
+          const rect = svgRef.current.getBoundingClientRect();
+          const cx = startMidX - rect.left;
+          const cy = startMidY - rect.top;
+
+          const newPanX = cx - (cx - initialPan.x) * (newZoom / initialZoom) + (currentMidX - startMidX);
+          const newPanY = cy - (cy - initialPan.y) * (newZoom / initialZoom) + (currentMidY - startMidY);
+
+          setZoom(newZoom);
+          setPan({ x: Math.round(newPanX), y: Math.round(newPanY) });
+        }
+      }
+      return;
+    }
+
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       const coords = getCanvasCoords(touch.clientX, touch.clientY);
@@ -1765,7 +1870,14 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e?: React.TouchEvent) => {
+    if (!e || e.touches.length < 2) {
+      pinchRef.current = null;
+    }
+    if (e && e.touches.length === 1) {
+      const touch = e.touches[0];
+      setStartPanMouse({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+    }
     // If user dragged a wire and released over a destination port, connect immediately!
     if (wireStart && hoveredPort) {
       if (hoveredPort.nodeId !== wireStart.nodeId || hoveredPort.portIndex !== wireStart.portIndex || hoveredPort.type !== wireStart.type) {
@@ -1773,7 +1885,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         return;
       }
     }
-    handleMouseUp();
+    if (!e || e.touches.length === 0) {
+      handleMouseUp();
+    }
   };
 
   const handleMouseUp = () => {
@@ -1923,61 +2037,63 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       )}
 
       {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/95 px-4 py-2 z-20">
-        {/* Left: Circuit Info & Controls */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={circuit.name}
-            onChange={e => setCircuit({ ...circuit, name: e.target.value })}
-            className="rounded bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-white border border-slate-700 focus:border-emerald-500 focus:outline-none w-44 sm:w-56"
-            placeholder="Circuit Name..."
-          />
+      <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-1.5 border-b border-slate-800 bg-slate-900/95 px-3 py-1.5 z-20 shadow-sm">
+        {/* Left: Circuit Info & Controls (Full width on mobile, inline on desktop) */}
+        <div className="flex items-center justify-between md:justify-start gap-1.5 w-full md:w-auto shrink-0">
+          <div className="flex items-center gap-1.5 flex-1 md:flex-initial min-w-0">
+            <input
+              type="text"
+              value={circuit.name}
+              onChange={e => setCircuit({ ...circuit, name: e.target.value })}
+              className="rounded bg-slate-800/80 px-2 py-1 text-xs font-bold text-white border border-slate-700 focus:border-emerald-500 focus:outline-none w-32 sm:w-52 truncate"
+              placeholder="Circuit Name..."
+            />
 
-          {/* Simulation Toggle */}
-          <button
-            onClick={() => setIsSimulating(!isSimulating)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-              isSimulating
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-            }`}
-          >
-            {isSimulating ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{isSimulating ? 'Simulating' : 'Paused'}</span>
-          </button>
+            {/* Simulation Toggle */}
+            <button
+              onClick={() => setIsSimulating(!isSimulating)}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition-all shrink-0 ${
+                isSimulating
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+              }`}
+            >
+              {isSimulating ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{isSimulating ? 'Simulating' : 'Paused'}</span>
+            </button>
 
-          {/* Single Step Trigger */}
-          <button
-            onClick={() => {
-              setCircuit(prev => {
-                const nextNodes = prev.nodes.map(n => {
-                  if (n.type === 'CLOCK') {
-                    const nextVal = !n.state?.highValue;
-                    return {
-                      ...n,
-                      state: { ...n.state, highValue: nextVal },
-                      outputs: [{ ...n.outputs[0], value: (nextVal ? 1 : 0) as LogicValue }],
-                    };
-                  }
-                  return n;
+            {/* Single Step Trigger */}
+            <button
+              onClick={() => {
+                setCircuit(prev => {
+                  const nextNodes = prev.nodes.map(n => {
+                    if (n.type === 'CLOCK') {
+                      const nextVal = !n.state?.highValue;
+                      return {
+                        ...n,
+                        state: { ...n.state, highValue: nextVal },
+                        outputs: [{ ...n.outputs[0], value: (nextVal ? 1 : 0) as LogicValue }],
+                      };
+                    }
+                    return n;
+                  });
+                  return { ...prev, nodes: nextNodes };
                 });
-                return { ...prev, nodes: nextNodes };
-              });
-            }}
-            title="Single Clock Step"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
+              }}
+              title="Single Clock Step"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800 shrink-0"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
           {/* Mobile Component Menu Button */}
           <button
             onClick={() => setShowMobilePaletteModal(true)}
-            className="md:hidden flex items-center gap-1.5 rounded-lg bg-cyan-600/30 hover:bg-cyan-500/40 active:bg-cyan-600/50 text-cyan-200 border border-cyan-500/50 px-2.5 py-1 text-xs font-bold transition-all active:scale-95 shadow-sm"
+            className="md:hidden flex items-center gap-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white border border-cyan-400/50 px-2.5 py-1 text-xs font-bold transition-all active:scale-95 shadow-sm shrink-0"
             title="Open Component Box / Add Components"
           >
-            <Cpu className="h-4 w-4 text-cyan-400" />
+            <Cpu className="h-3.5 w-3.5 text-cyan-200" />
             <span>+ Components</span>
           </button>
         </div>
@@ -2041,7 +2157,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         )}
 
         {/* Center: Tools (Select, Wire, Undo, Redo, Zoom) */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full md:w-auto py-0.5 shrink-0">
           <button
             onClick={() => { setEditorMode('SELECT'); setWireStart(null); }}
             title="Select & Move Mode"
@@ -2277,34 +2393,42 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
           <div className="h-4 w-[1px] bg-slate-800 mx-1" />
 
-          <button
-            onClick={() => setZoom(z => Math.max(0.4, z - 0.1))}
-            title="Zoom Out"
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <span className="text-[10px] font-mono text-slate-400 w-10 text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            onClick={() => setZoom(z => Math.min(2.5, z + 0.1))}
-            title="Zoom In"
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            title="Reset Pan & Zoom"
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
-        </div>
+          {/* Zoom Controller in Toolbar (Image 1 Style: [-] 100% [+] [⤢]) */}
+          <div className="flex items-center gap-0.5 rounded-lg bg-slate-950/80 border border-slate-700/80 px-1 py-0.5 shrink-0">
+            <button
+              onClick={handleZoomOut}
+              title="Zoom Out"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              title="Reset Zoom to 100%"
+              className="text-[11px] font-mono font-bold text-sky-400 hover:text-sky-300 px-1.5 py-0.5 rounded hover:bg-slate-800/60 text-center"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={handleZoomIn}
+              title="Zoom In"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleFitToScreen}
+              title="Fit to Screen"
+              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
-        {/* Right: Actions (Truth Table, Save, Export, Clear) */}
-        <div className="flex items-center gap-1.5">
+          <div className="h-4 w-[1px] bg-slate-800 mx-1 shrink-0" />
+
+          {/* Right: Actions (Truth Table, Save, Export, Clear) */}
+          <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={handleOpenTruthTable}
             title="Generate Automatic Truth Table"
@@ -2347,6 +2471,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           >
             <Trash2 className="h-4 w-4" />
           </button>
+          </div>
         </div>
       </div>
 
@@ -2586,18 +2711,42 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           onTouchEnd={handleTouchEnd}
           onClick={handleCanvasClick}
         >
-          {/* Mobile Canvas Floating Action Button for Component Box */}
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              setShowMobilePaletteModal(true);
-            }}
-            className="md:hidden absolute bottom-5 left-4 z-30 flex items-center gap-2 px-3.5 py-2 rounded-full bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-bold text-xs shadow-2xl border border-cyan-400/60 active:scale-95 transition-all shadow-cyan-950/70"
-            title="Open Component Box"
+          {/* Floating Canvas Zoom & View Controls (Image 1 replica: [-] 100% [+] [⤢]) */}
+          <div 
+            className="absolute bottom-5 right-4 z-30 flex items-center gap-1 rounded-xl bg-slate-900/95 border border-slate-700/80 px-2 py-1 shadow-2xl backdrop-blur-md select-none"
+            onClick={e => e.stopPropagation()}
+            onTouchStart={e => e.stopPropagation()}
           >
-            <Cpu className="h-4 w-4 text-cyan-200" />
-            <span>+ Components</span>
-          </button>
+            <button
+              onClick={handleZoomOut}
+              title="Zoom Out"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              title="Reset Zoom (100%)"
+              className="px-2 py-0.5 text-xs font-mono font-bold text-sky-400 hover:text-sky-300 rounded hover:bg-slate-800/80 active:scale-95 transition-all"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={handleZoomIn}
+              title="Zoom In"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            <div className="h-3.5 w-[1px] bg-slate-700 mx-0.5" />
+            <button
+              onClick={handleFitToScreen}
+              title="Fit All Circuit Components to Screen"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          </div>
 
           {/* Diagnostic Warnings Banner */}
           {simResult.warnings.length > 0 && (
@@ -4080,7 +4229,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       </div>
 
       {/* Mobile Component Add Drawer */}
-      <div className="md:hidden flex items-center gap-2 p-2 border-t border-slate-800 bg-slate-900 overflow-x-auto shrink-0 z-20">
+      <div className="md:hidden flex items-center gap-2 px-3 py-2 border-t border-slate-800 bg-slate-900 overflow-x-auto no-scrollbar scroll-smooth shrink-0 z-20 pr-8 shadow-inner">
         {(selectedNode || (selectedWireId && selectedWire)) && (
           <button
             onClick={() => setShowPropertiesPanel(p => !p)}
