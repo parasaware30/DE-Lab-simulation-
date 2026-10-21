@@ -6,6 +6,10 @@ export interface KMapGroup {
   cells: number[]; // minterm/maxterm indices
   expression: string;
   isEssential: boolean;
+  r: number; // top-left start row
+  c: number; // top-left start col
+  h: number; // height (row count)
+  w: number; // width (col count)
   rowIndices: number[];
   colIndices: number[];
 }
@@ -28,14 +32,15 @@ export interface KMapResult {
   dontCares: number[];
 }
 
-const GROUP_COLORS = [
-  'rgba(59, 130, 246, 0.45)', // blue
-  'rgba(16, 185, 129, 0.45)', // green
-  'rgba(245, 158, 11, 0.45)', // amber
-  'rgba(236, 72, 153, 0.45)', // pink
-  'rgba(139, 92, 246, 0.45)', // purple
-  'rgba(20, 184, 166, 0.45)', // teal
-  'rgba(239, 68, 68, 0.45)',  // red
+export const KMAP_COLORS = [
+  '#a855f7', // Purple (like image 2)
+  '#10b981', // Emerald Green (like image 2)
+  '#f97316', // Orange (like image 2)
+  '#ef4444', // Red (like image 2)
+  '#06b6d4', // Cyan
+  '#3b82f6', // Blue
+  '#ec4899', // Pink
+  '#eab308', // Amber/Yellow
 ];
 
 export function createEmptyKMap(varCount: 2 | 3 | 4): KMapResult {
@@ -100,6 +105,9 @@ export function mintermToCoords(varCount: 2 | 3 | 4, m: number): { r: number; c:
   }
 }
 
+const isSameGroup = (a: number[], b: number[]) =>
+  a.length === b.length && a.every((val, idx) => val === b[idx]);
+
 export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
   const kmap = createEmptyKMap(varCount);
   kmap.grid = grid.map(row => [...row]);
@@ -139,7 +147,7 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
     ? `ΠM(${maxterms.join(', ')})` + (dontCares.length ? ` · d(${dontCares.join(', ')})` : '')
     : '1';
 
-  // Available group sizes in Gray code
+  // Available group sizes in Gray code: largest power-of-2 first
   const groupSizes = varCount === 4
     ? [[4, 4], [4, 2], [2, 4], [4, 1], [1, 4], [2, 2], [2, 1], [1, 2], [1, 1]]
     : varCount === 3
@@ -156,10 +164,14 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
     kmap.sop = '1';
     kmap.groups = [{
       id: 'grp_sop_all',
-      color: GROUP_COLORS[0],
+      color: KMAP_COLORS[0],
       cells: Array.from({ length: totalCells }, (_, i) => i),
       expression: '1',
       isEssential: true,
+      r: 0,
+      c: 0,
+      h: rows,
+      w: cols,
       rowIndices: Array.from({ length: rows }, (_, i) => i),
       colIndices: Array.from({ length: cols }, (_, i) => i),
     }];
@@ -192,9 +204,7 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
 
           if (allValid && containsAtLeastOneTarget) {
             cells.sort((a, b) => a - b);
-            const isDuplicate = candidateSOP.some(g =>
-              g.cells.length === cells.length && g.cells.every((val, idx) => val === cells[idx])
-            );
+            const isDuplicate = candidateSOP.some(g => isSameGroup(g.cells, cells));
             if (!isDuplicate) {
               const expr = getGroupSOPExpression(varCount, kmap.variables, cells);
               candidateSOP.push({ r, c, h, w, cells, expression: expr });
@@ -211,18 +221,22 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
     const uncoveredMinterms = new Set(minterms);
     const selectedSOP: KMapGroup[] = [];
 
-    // Essential prime implicants
+    // Essential prime implicants (uniquely covers at least one target minterm)
     for (const m of minterms) {
       const covering = primeSOP.filter(g => g.cells.includes(m));
       if (covering.length === 1) {
         const g = covering[0];
-        if (!selectedSOP.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) {
+        if (!selectedSOP.some(sg => isSameGroup(sg.cells, g.cells))) {
           selectedSOP.push({
             id: `grp_sop_${selectedSOP.length}`,
-            color: GROUP_COLORS[selectedSOP.length % GROUP_COLORS.length],
+            color: KMAP_COLORS[selectedSOP.length % KMAP_COLORS.length],
             cells: g.cells,
             expression: g.expression,
             isEssential: true,
+            r: g.r,
+            c: g.c,
+            h: g.h,
+            w: g.w,
             rowIndices: Array.from({ length: g.h }, (_, i) => (g.r + i) % rows),
             colIndices: Array.from({ length: g.w }, (_, i) => (g.c + i) % cols),
           });
@@ -231,16 +245,23 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
       }
     }
 
-    // Greedy cover for remaining uncovered minterms
+    // Cover remaining uncovered minterms
     while (uncoveredMinterms.size > 0) {
       let bestGroup: typeof primeSOP[0] | null = null;
       let maxCovered = -1;
+      let bestTotalTargets = -1;
 
       for (const g of primeSOP) {
-        if (selectedSOP.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) continue;
+        if (selectedSOP.some(sg => isSameGroup(sg.cells, g.cells))) continue;
         const count = g.cells.filter(m => uncoveredMinterms.has(m)).length;
+        const totalTargets = g.cells.filter(m => minterms.includes(m)).length;
+
         if (count > maxCovered) {
           maxCovered = count;
+          bestTotalTargets = totalTargets;
+          bestGroup = g;
+        } else if (count === maxCovered && count > 0 && totalTargets > bestTotalTargets) {
+          bestTotalTargets = totalTargets;
           bestGroup = g;
         }
       }
@@ -249,10 +270,14 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
 
       selectedSOP.push({
         id: `grp_sop_${selectedSOP.length}`,
-        color: GROUP_COLORS[selectedSOP.length % GROUP_COLORS.length],
+        color: KMAP_COLORS[selectedSOP.length % KMAP_COLORS.length],
         cells: bestGroup.cells,
         expression: bestGroup.expression,
         isEssential: false,
+        r: bestGroup.r,
+        c: bestGroup.c,
+        h: bestGroup.h,
+        w: bestGroup.w,
         rowIndices: Array.from({ length: bestGroup.h }, (_, i) => (bestGroup.r + i) % rows),
         colIndices: Array.from({ length: bestGroup.w }, (_, i) => (bestGroup.c + i) % cols),
       });
@@ -273,10 +298,14 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
     kmap.pos = '0';
     kmap.posGroups = [{
       id: 'grp_pos_all',
-      color: GROUP_COLORS[0],
+      color: KMAP_COLORS[0],
       cells: Array.from({ length: totalCells }, (_, i) => i),
       expression: '0',
       isEssential: true,
+      r: 0,
+      c: 0,
+      h: rows,
+      w: cols,
       rowIndices: Array.from({ length: rows }, (_, i) => i),
       colIndices: Array.from({ length: cols }, (_, i) => i),
     }];
@@ -309,9 +338,7 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
 
           if (allValid && containsAtLeastOneTarget) {
             cells.sort((a, b) => a - b);
-            const isDuplicate = candidatePOS.some(g =>
-              g.cells.length === cells.length && g.cells.every((val, idx) => val === cells[idx])
-            );
+            const isDuplicate = candidatePOS.some(g => isSameGroup(g.cells, cells));
             if (!isDuplicate) {
               const expr = getGroupPOSExpression(varCount, kmap.variables, cells);
               candidatePOS.push({ r, c, h, w, cells, expression: expr });
@@ -333,13 +360,17 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
       const covering = primePOS.filter(g => g.cells.includes(m));
       if (covering.length === 1) {
         const g = covering[0];
-        if (!selectedPOS.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) {
+        if (!selectedPOS.some(sg => isSameGroup(sg.cells, g.cells))) {
           selectedPOS.push({
             id: `grp_pos_${selectedPOS.length}`,
-            color: GROUP_COLORS[selectedPOS.length % GROUP_COLORS.length],
+            color: KMAP_COLORS[selectedPOS.length % KMAP_COLORS.length],
             cells: g.cells,
             expression: g.expression,
             isEssential: true,
+            r: g.r,
+            c: g.c,
+            h: g.h,
+            w: g.w,
             rowIndices: Array.from({ length: g.h }, (_, i) => (g.r + i) % rows),
             colIndices: Array.from({ length: g.w }, (_, i) => (g.c + i) % cols),
           });
@@ -348,16 +379,23 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
       }
     }
 
-    // Greedy cover for remaining uncovered maxterms
+    // Cover remaining uncovered maxterms
     while (uncoveredMaxterms.size > 0) {
       let bestGroup: typeof primePOS[0] | null = null;
       let maxCovered = -1;
+      let bestTotalTargets = -1;
 
       for (const g of primePOS) {
-        if (selectedPOS.some(sg => sg.cells.length === g.cells.length && sg.cells[0] === g.cells[0])) continue;
+        if (selectedPOS.some(sg => isSameGroup(sg.cells, g.cells))) continue;
         const count = g.cells.filter(m => uncoveredMaxterms.has(m)).length;
+        const totalTargets = g.cells.filter(m => maxterms.includes(m)).length;
+
         if (count > maxCovered) {
           maxCovered = count;
+          bestTotalTargets = totalTargets;
+          bestGroup = g;
+        } else if (count === maxCovered && count > 0 && totalTargets > bestTotalTargets) {
+          bestTotalTargets = totalTargets;
           bestGroup = g;
         }
       }
@@ -366,10 +404,14 @@ export function solveKMap(varCount: 2 | 3 | 4, grid: KMapCell[][]): KMapResult {
 
       selectedPOS.push({
         id: `grp_pos_${selectedPOS.length}`,
-        color: GROUP_COLORS[selectedPOS.length % GROUP_COLORS.length],
+        color: KMAP_COLORS[selectedPOS.length % KMAP_COLORS.length],
         cells: bestGroup.cells,
         expression: bestGroup.expression,
         isEssential: false,
+        r: bestGroup.r,
+        c: bestGroup.c,
+        h: bestGroup.h,
+        w: bestGroup.w,
         rowIndices: Array.from({ length: bestGroup.h }, (_, i) => (bestGroup.r + i) % rows),
         colIndices: Array.from({ length: bestGroup.w }, (_, i) => (bestGroup.c + i) % cols),
       });

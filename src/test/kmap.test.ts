@@ -53,4 +53,49 @@ describe('K-Map Solver Engine', () => {
     expect(res.pos).toBe('A');
     expect(res.sop).toBe('A');
   });
+
+  it('solves Image 1 SOP case (m1, m3, m7, m11, m15 with dont-cares 0, 2, 4, 8)', () => {
+    const kmap = createEmptyKMap(4);
+    // m1, m3, m7, m11, m15 = 1
+    // m0, m2, m4, m8 = X
+    kmap.grid[0][0] = 'X'; // m0
+    kmap.grid[0][1] = 1;   // m1
+    kmap.grid[0][2] = 1;   // m3
+    kmap.grid[0][3] = 'X'; // m2
+    kmap.grid[1][0] = 'X'; // m4
+    kmap.grid[1][2] = 1;   // m7
+    kmap.grid[2][2] = 1;   // m15
+    kmap.grid[3][0] = 'X'; // m8
+    kmap.grid[3][2] = 1;   // m11
+
+    const res = solveKMap(4, kmap.grid);
+    // Group 1: row 0 {0, 1, 3, 2} -> A'B'
+    // Group 2: col 2 {3, 7, 11, 15} -> CD
+    expect(res.sop.split(' + ').sort()).toEqual(["A'B'", "CD"].sort());
+  });
+
+  it('solves Image 2 POS case', () => {
+    const kmap = createEmptyKMap(4);
+    // Row 0: m0=X, m1=1, m3=X, m2=0
+    kmap.grid[0][0] = 'X'; kmap.grid[0][1] = 1; kmap.grid[0][2] = 'X'; kmap.grid[0][3] = 0;
+    // Row 1: m4=X, m5=0, m7=0, m6=1
+    kmap.grid[1][0] = 'X'; kmap.grid[1][1] = 0; kmap.grid[1][2] = 0; kmap.grid[1][3] = 1;
+    // Row 2: m12=1, m13=1, m15=0, m14=1
+    kmap.grid[2][0] = 1; kmap.grid[2][1] = 1; kmap.grid[2][2] = 0; kmap.grid[2][3] = 1;
+    // Row 3: m8=X, m9=0, m11=1, m10=0
+    kmap.grid[3][0] = 'X'; kmap.grid[3][1] = 0; kmap.grid[3][2] = 1; kmap.grid[3][3] = 0;
+
+    const res = solveKMap(4, kmap.grid);
+    // Groups should be:
+    // (B + D): corners {0, 2, 8, 10}
+    // (A + B' + D'): {5, 7}
+    // (B' + C' + D'): {7, 15}
+    // (A' + B + C): {8, 9}
+    const exprs = res.posGroups.map(g => g.expression);
+    expect(exprs).toContain('(B + D)');
+    expect(exprs).toContain('(A + B\' + D\')');
+    expect(exprs).toContain('(B\' + C\' + D\')');
+    expect(exprs).toContain('(A\' + B + C)');
+    expect(res.posGroups.length).toBe(4);
+  });
 });
