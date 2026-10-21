@@ -39,6 +39,7 @@ export function evalXor(inputs: LogicValue[]): LogicValue {
 export function evalGate(type: GateType, inputs: LogicValue[]): LogicValue {
   switch (type) {
     case 'NOT':
+    case 'SCHMITT_NOT':
       return evalNot(inputs[0] ?? 'Z');
     case 'BUFFER':
       return inputs[0] === 0 ? 0 : inputs[0] === 1 ? 1 : 'X';

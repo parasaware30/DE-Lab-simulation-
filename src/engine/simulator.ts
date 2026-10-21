@@ -65,7 +65,7 @@ export function validateCircuit(circuit: Circuit): { isValid: boolean; errors: s
 
   // Check for disconnected/floating inputs on gates
   for (const node of circuit.nodes) {
-    if (['SWITCH', 'PUSH_BUTTON', 'CLOCK', 'CONST_HIGH', 'CONST_LOW', 'COMMENT', 'SEVEN_SEG', 'HEX_DISPLAY', 'BAR_GRAPH'].includes(node.type)) continue;
+    if (['SWITCH', 'PUSH_BUTTON', 'CLOCK', 'CONST_HIGH', 'CONST_LOW', 'COMMENT', 'SEVEN_SEG', 'HEX_DISPLAY', 'BAR_GRAPH', 'BATTERY_DC', 'GND', 'CRYSTAL_OSC', 'RGB_LED', 'VOLTMETER'].includes(node.type)) continue;
 
     for (let i = 0; i < node.inputs.length; i++) {
       const key = `${node.id}_in_${i}`;
@@ -928,6 +928,144 @@ function evaluateNode(node: CircuitNode, clockTicked: boolean = false): boolean 
         node.outputs[0].value = outVal;
         changed = true;
       }
+      break;
+    }
+
+    case 'BATTERY_DC': {
+      if (node.outputs[0] && node.outputs[0].value !== 1) {
+        node.outputs[0].value = 1;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'GND': {
+      if (node.outputs[0] && node.outputs[0].value !== 0) {
+        node.outputs[0].value = 0;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'CRYSTAL_OSC': {
+      if (!node.state) node.state = {};
+      if (clockTicked) {
+        node.state.highValue = !node.state.highValue;
+      }
+      const clkVal: LogicValue = node.state.highValue ? 1 : 0;
+      if (node.outputs[0] && node.outputs[0].value !== clkVal) {
+        node.outputs[0].value = clkVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'TRANSISTOR_PNP': {
+      // Inputs: Base (0), Collector (1) -> Emitter Output (0)
+      // In PNP BJT: conducts Collector to Emitter when Base is LOW (0)
+      const base = node.inputs[0]?.value === 0 ? 0 : 1;
+      const collector = node.inputs[1]?.value ?? 0;
+      const outVal: LogicValue = base === 0 ? collector : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'MOSFET_P': {
+      // Inputs: Gate (0), Drain (1) -> Source Output (0)
+      // Active LOW: conducts Drain to Source when Gate is LOW (0)
+      const gate = node.inputs[0]?.value === 0 ? 0 : 1;
+      const drain = node.inputs[1]?.value ?? 0;
+      const outVal: LogicValue = gate === 0 ? drain : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'DIODE_SCHOTTKY': {
+      const inVal = node.inputs[0]?.value ?? 0;
+      const outVal: LogicValue = inVal === 1 ? 1 : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'LDR_PHOTORESISTOR': {
+      // Inputs: In (0) -> Out (0)
+      const inVal = node.inputs[0]?.value ?? 0;
+      const light = node.state?.lightLevel ?? 80;
+      const outVal: LogicValue = light >= 50 ? inVal : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'OP_AMP': {
+      // Inputs: Non-inverting V+ (0), Inverting V- (1) -> Vout (0)
+      const vp = node.inputs[0]?.value === 1 ? 1 : 0;
+      const vm = node.inputs[1]?.value === 1 ? 1 : 0;
+      const outVal: LogicValue = (vp === 1 && vm === 0) ? 1 : 0;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'IC_555': {
+      // Inputs: TRIG (0), RST (1) -> OUT (0), DIS (1)
+      const trig = node.inputs[0]?.value ?? 1;
+      const rst = node.inputs[1] ? (node.inputs[1].value ?? 1) : 1;
+      let outVal: LogicValue = 0;
+      if (rst === 0) {
+        outVal = 0;
+      } else if (trig === 0) {
+        outVal = 1;
+      } else {
+        outVal = clockTicked ? 1 : (node.outputs[0]?.value ?? 0);
+      }
+      const disVal: LogicValue = outVal === 1 ? 0 : 1;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      if (node.outputs[1] && node.outputs[1].value !== disVal) {
+        node.outputs[1].value = disVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'VOLTMETER': {
+      // Pass-through probe
+      const inVal = node.inputs[0]?.value ?? 0;
+      if (node.outputs[0] && node.outputs[0].value !== inVal) {
+        node.outputs[0].value = inVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'SCHMITT_NOT': {
+      const inVal = node.inputs[0]?.value ?? 0;
+      const outVal: LogicValue = inVal === 1 ? 0 : 1;
+      if (node.outputs[0] && node.outputs[0].value !== outVal) {
+        node.outputs[0].value = outVal;
+        changed = true;
+      }
+      break;
+    }
+
+    case 'RGB_LED': {
+      // Visual indicator sink - no output signals
       break;
     }
 

@@ -110,21 +110,24 @@ export const getNodeDimensions = (node: CircuitNode) => {
   if (node.type.endsWith('_FF') || node.type === 'D_LATCH') {
     return { width: 120, height: 96 };
   }
-  if (['RESISTOR', 'CAPACITOR', 'INDUCTOR', 'DIODE', 'ZENER_DIODE', 'FUSE'].includes(node.type)) {
+  if (['RESISTOR', 'CAPACITOR', 'INDUCTOR', 'DIODE', 'ZENER_DIODE', 'DIODE_SCHOTTKY', 'LDR_PHOTORESISTOR', 'FUSE', 'SCHMITT_NOT'].includes(node.type)) {
     return { width: 104, height: 76 };
   }
-  if (['TRANSISTOR_NPN', 'MOSFET_N', 'POTENTIOMETER'].includes(node.type)) {
+  if (['TRANSISTOR_NPN', 'TRANSISTOR_PNP', 'MOSFET_N', 'MOSFET_P', 'POTENTIOMETER', 'VOLTMETER'].includes(node.type)) {
     return { width: 116, height: 90 };
   }
-  if (node.type === 'RELAY') {
+  if (node.type === 'RELAY' || node.type === 'OP_AMP' || node.type === 'IC_555') {
     return { width: 124, height: 96 };
+  }
+  if (node.type === 'RGB_LED') {
+    return { width: 104, height: 88 };
   }
   if (['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR', 'BUFFER', 'AND3', 'OR3', 'NAND3', 'NOR3', 'XOR3', 'AND4', 'OR4', 'NAND4', 'NOR4', 'TRI_STATE'].includes(node.type)) {
     const inputCount = Math.max(2, node.inputs.length);
     const height = Math.max(80, inputCount * 26 + 26);
     return { width: 116, height };
   }
-  if (['SWITCH', 'CLOCK', 'PUSH_BUTTON', 'CONST_HIGH', 'CONST_LOW'].includes(node.type)) {
+  if (['SWITCH', 'CLOCK', 'PUSH_BUTTON', 'CONST_HIGH', 'CONST_LOW', 'BATTERY_DC', 'GND', 'CRYSTAL_OSC'].includes(node.type)) {
     return { width: 104, height: 78 };
   }
   if (node.type === 'LED' || node.type === 'PROBE') {
@@ -480,6 +483,71 @@ export const ComponentSymbolIcon: React.FC<{ type: GateType; className?: string 
       </svg>
     );
   }
+  if (type === 'TRANSISTOR_PNP') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 28" className={`${className} text-rose-400`}>
+        <circle cx="18" cy="14" r="12" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.6" />
+        <line x1="12" y1="6" x2="12" y2="22" stroke="currentColor" strokeWidth="2.5" />
+        <line x1="2" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.8" />
+        <line x1="12" y1="10" x2="24" y2="4" stroke="currentColor" strokeWidth="1.8" />
+        <line x1="12" y1="18" x2="24" y2="24" stroke="currentColor" strokeWidth="1.8" />
+        <polygon points="14,19 19,21 16,16" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (type === 'MOSFET_P') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 28" className={`${className} text-pink-400`}>
+        <line x1="8" y1="6" x2="8" y2="22" stroke="currentColor" strokeWidth="2" />
+        <line x1="14" y1="6" x2="14" y2="10" stroke="currentColor" strokeWidth="2" />
+        <line x1="14" y1="12" x2="14" y2="16" stroke="currentColor" strokeWidth="2" />
+        <line x1="14" y1="18" x2="14" y2="22" stroke="currentColor" strokeWidth="2" />
+        <path d="M 2 14 L 8 14 M 14 8 L 26 8 M 14 20 L 26 20 M 14 14 L 20 14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <polygon points="19,14 15,12 15,16" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (type === 'DIODE_SCHOTTKY') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-amber-400`}>
+        <path d="M 2 12 L 10 12 M 10 5 L 24 12 L 10 19 Z M 20 6 L 24 6 L 24 18 L 28 18 M 24 12 L 32 12" fill="currentColor" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === 'LDR_PHOTORESISTOR') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-yellow-400`}>
+        <circle cx="18" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.6" />
+        <path d="M 8 12 L 12 12 L 14 8 L 18 16 L 22 8 L 24 12 L 28 12" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M 24 4 L 20 8 M 28 7 L 24 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'OP_AMP') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-cyan-400`}>
+        <polygon points="6,3 30,12 6,21" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1.8" />
+        <text x="10" y="9" fill="currentColor" fontSize="7" fontWeight="bold">-</text>
+        <text x="10" y="18" fill="currentColor" fontSize="7" fontWeight="bold">+</text>
+      </svg>
+    );
+  }
+  if (type === 'IC_555') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400`}>
+        <rect x="6" y="3" width="24" height="18" rx="2" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1.5" />
+        <text x="18" y="15" textAnchor="middle" fill="currentColor" fontSize="8" fontFamily="monospace" fontWeight="bold">555</text>
+      </svg>
+    );
+  }
+  if (type === 'VOLTMETER') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400`}>
+        <circle cx="18" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <text x="18" y="15" textAnchor="middle" fill="currentColor" fontSize="10" fontFamily="monospace" fontWeight="bold">V</text>
+      </svg>
+    );
+  }
 
   // Inputs & Power
   if (type === 'SWITCH' || type === 'PUSH_BUTTON') {
@@ -498,6 +566,37 @@ export const ComponentSymbolIcon: React.FC<{ type: GateType; className?: string 
       </svg>
     );
   }
+  if (type === 'BATTERY_DC') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-amber-400`}>
+        <line x1="4" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.8" />
+        <line x1="14" y1="5" x2="14" y2="19" stroke="currentColor" strokeWidth="2.5" />
+        <line x1="20" y1="8" x2="20" y2="16" stroke="currentColor" strokeWidth="3.5" />
+        <line x1="20" y1="12" x2="30" y2="12" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
+  if (type === 'GND') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-slate-400`}>
+        <line x1="18" y1="3" x2="18" y2="11" stroke="currentColor" strokeWidth="2" />
+        <line x1="7" y1="11" x2="29" y2="11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="11" y1="15" x2="25" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <line x1="15" y1="19" x2="21" y2="19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'CRYSTAL_OSC') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-cyan-400`}>
+        <line x1="4" y1="12" x2="11" y2="12" stroke="currentColor" strokeWidth="1.8" />
+        <line x1="11" y1="5" x2="11" y2="19" stroke="currentColor" strokeWidth="2.5" />
+        <rect x="15" y="6" width="6" height="12" fill="currentColor" fillOpacity="0.4" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="25" y1="5" x2="25" y2="19" stroke="currentColor" strokeWidth="2.5" />
+        <line x1="25" y1="12" x2="32" y2="12" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
   if (type === 'CONST_HIGH') {
     return (
       <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-emerald-400 font-bold`}>
@@ -513,6 +612,24 @@ export const ComponentSymbolIcon: React.FC<{ type: GateType; className?: string 
         <line x1="8" y1="12" x2="28" y2="12" stroke="currentColor" strokeWidth="2" />
         <line x1="12" y1="16" x2="24" y2="16" stroke="currentColor" strokeWidth="2" />
         <line x1="15" y1="20" x2="21" y2="20" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  }
+  if (type === 'SCHMITT_NOT') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className} text-cyan-400`}>
+        <polygon points="6,3 24,12 6,21" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="27" cy="12" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M 12 15 L 15 15 L 15 9 L 18 9" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    );
+  }
+  if (type === 'RGB_LED') {
+    return (
+      <svg width="24" height="18" viewBox="0 0 36 24" className={`${className}`}>
+        <circle cx="11" cy="12" r="4" fill="#ef4444" />
+        <circle cx="18" cy="12" r="4" fill="#10b981" />
+        <circle cx="25" cy="12" r="4" fill="#3b82f6" />
       </svg>
     );
   }
@@ -1438,6 +1555,89 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         outputs = [{ id: 'out_0', name: '2', type: 'output', value: 0 }];
         state = { fuseBlown: false };
         break;
+      case 'TRANSISTOR_PNP':
+        label = 'PNP BJT (2N3906)';
+        inputs = [
+          { id: 'in_0', name: 'B', type: 'input', value: 0 },
+          { id: 'in_1', name: 'C', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'E', type: 'output', value: 0 }];
+        break;
+      case 'MOSFET_P':
+        label = 'P-Ch MOSFET';
+        inputs = [
+          { id: 'in_0', name: 'G', type: 'input', value: 0 },
+          { id: 'in_1', name: 'D', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'S', type: 'output', value: 0 }];
+        break;
+      case 'DIODE_SCHOTTKY':
+        label = 'Schottky Diode (BAT54)';
+        inputs = [{ id: 'in_0', name: 'A', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: 'K', type: 'output', value: 0 }];
+        break;
+      case 'LDR_PHOTORESISTOR':
+        label = 'LDR / Photoresistor';
+        inputs = [{ id: 'in_0', name: '1', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: '2', type: 'output', value: 0 }];
+        state = { lightLevel: 80 };
+        break;
+      case 'BATTERY_DC':
+        label = '+5V DC Battery';
+        inputs = [];
+        outputs = [{ id: 'out_0', name: '+5V', type: 'output', value: 1 }];
+        state = { highValue: true, voltage: 5 };
+        break;
+      case 'GND':
+        label = 'Ground (0V)';
+        inputs = [];
+        outputs = [{ id: 'out_0', name: 'GND', type: 'output', value: 0 }];
+        state = { highValue: false, voltage: 0 };
+        break;
+      case 'OP_AMP':
+        label = 'LM741 Op-Amp / Comp';
+        inputs = [
+          { id: 'in_0', name: 'V+', type: 'input', value: 0 },
+          { id: 'in_1', name: 'V-', type: 'input', value: 0 },
+        ];
+        outputs = [{ id: 'out_0', name: 'Vout', type: 'output', value: 0 }];
+        break;
+      case 'IC_555':
+        label = 'NE555 Timer IC';
+        inputs = [
+          { id: 'in_0', name: 'TRIG', type: 'input', value: 1 },
+          { id: 'in_1', name: 'RST', type: 'input', value: 1 },
+        ];
+        outputs = [
+          { id: 'out_0', name: 'OUT', type: 'output', value: 0 },
+          { id: 'out_1', name: 'DIS', type: 'output', value: 1 },
+        ];
+        break;
+      case 'VOLTMETER':
+        label = 'Digital Voltmeter';
+        inputs = [{ id: 'in_0', name: 'V_IN', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: 'V_OUT', type: 'output', value: 0 }];
+        break;
+      case 'RGB_LED':
+        label = 'RGB LED Display';
+        inputs = [
+          { id: 'in_0', name: 'R', type: 'input', value: 0 },
+          { id: 'in_1', name: 'G', type: 'input', value: 0 },
+          { id: 'in_2', name: 'B', type: 'input', value: 0 },
+        ];
+        outputs = [];
+        break;
+      case 'SCHMITT_NOT':
+        label = '7414 Schmitt Inverter';
+        inputs = [{ id: 'in_0', name: 'A', type: 'input', value: 0 }];
+        outputs = [{ id: 'out_0', name: 'Y', type: 'output', value: 1 }];
+        break;
+      case 'CRYSTAL_OSC':
+        label = 'Crystal Osc (1MHz)';
+        inputs = [];
+        outputs = [{ id: 'out_0', name: 'CLK', type: 'output', value: 0 }];
+        state = { highValue: false, frequency: 1 };
+        break;
       default:
         inputs = [
           { id: 'in_0', name: 'A', type: 'input', value: 0 },
@@ -1646,17 +1846,17 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     setToastMessage('Zoom reset to 100%');
   };
 
-  const handleFitToScreen = () => {
-    if (circuit.nodes.length === 0) {
+  const fitCircuitToViewport = (targetCircuit?: Circuit) => {
+    const c = targetCircuit || circuit;
+    if (c.nodes.length === 0) {
       setZoom(1);
       setPan({ x: 0, y: 0 });
-      setToastMessage('View reset to 100%');
       return;
     }
 
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const containerW = rect.width || 800;
+    const containerW = rect.width || window.innerWidth || 800;
     const containerH = rect.height || 600;
 
     let minX = Infinity;
@@ -1664,13 +1864,13 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    circuit.nodes.forEach(n => {
-      const w = n.width || 120;
-      const h = n.height || 70;
-      minX = Math.min(minX, n.x - 30);
-      minY = Math.min(minY, n.y - 30);
-      maxX = Math.max(maxX, n.x + w + 30);
-      maxY = Math.max(maxY, n.y + h + 30);
+    c.nodes.forEach(n => {
+      const w = n.width || 116;
+      const h = n.height || 76;
+      minX = Math.min(minX, n.x - 16);
+      minY = Math.min(minY, n.y - 16);
+      maxX = Math.max(maxX, n.x + w + 16);
+      maxY = Math.max(maxY, n.y + h + 16);
     });
 
     const circuitW = maxX - minX;
@@ -1682,10 +1882,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       return;
     }
 
-    const padding = 40;
+    const padding = 20; // Compact 20px padding prevents off-screen clipping on phones
     const scaleX = (containerW - padding * 2) / circuitW;
     const scaleY = (containerH - padding * 2) / circuitH;
-    const optimalZoom = Math.max(0.35, Math.min(1.5, Math.min(scaleX, scaleY)));
+    const optimalZoom = Math.max(0.35, Math.min(1.2, Math.min(scaleX, scaleY)));
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
@@ -1694,8 +1894,30 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
     setZoom(Number(optimalZoom.toFixed(2)));
     setPan({ x: Math.round(newPanX), y: Math.round(newPanY) });
-    setToastMessage(`Fitted to screen (${Math.round(optimalZoom * 100)}%)`);
   };
+
+  const handleFitToScreen = () => {
+    fitCircuitToViewport();
+    setToastMessage('Circuit fitted to screen');
+  };
+
+  const loadPresetCircuit = (sample: Circuit) => {
+    pushHistory(sample);
+    setSelectedNodeId(null);
+    setSelectedWireId(null);
+    setTimeout(() => {
+      fitCircuitToViewport(sample);
+    }, 60);
+    setToastMessage(`Loaded preset: ${sample.name}`);
+  };
+
+  // Automatically fit circuit to screen on mount so mobile phones immediately display the full circuit
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fitCircuitToViewport();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Canvas Mouse events for Dragging, Resizing & Panning
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -2524,6 +2746,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   { type: 'SWITCH' as GateType, label: 'Switch', sub: '0 / 1 Toggle' },
                   { type: 'PUSH_BUTTON' as GateType, label: 'Push Button', sub: 'Tactile Click' },
                   { type: 'CLOCK' as GateType, label: 'Clock', sub: '1 Hz Pulse' },
+                  { type: 'BATTERY_DC' as GateType, label: '5V Battery', sub: 'DC Power Source' },
+                  { type: 'GND' as GateType, label: 'GND (0V)', sub: 'Ground Reference' },
+                  { type: 'CRYSTAL_OSC' as GateType, label: 'Crystal Osc', sub: '1 MHz Clock' },
                   { type: 'CONST_HIGH' as GateType, label: '+5V (VCC)', sub: 'Constant 1' },
                   { type: 'CONST_LOW' as GateType, label: 'GND (0V)', sub: 'Constant 0' },
                 ],
@@ -2536,6 +2761,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   { type: 'AND' as GateType, label: 'AND', sub: '2-Input' },
                   { type: 'OR' as GateType, label: 'OR', sub: '2-Input' },
                   { type: 'NOT' as GateType, label: 'NOT', sub: 'Inverter' },
+                  { type: 'SCHMITT_NOT' as GateType, label: 'Schmitt NOT', sub: '7414 Inverter' },
                   { type: 'NAND' as GateType, label: 'NAND', sub: '2-Input' },
                   { type: 'NOR' as GateType, label: 'NOR', sub: '2-Input' },
                   { type: 'XOR' as GateType, label: 'XOR', sub: '2-Input' },
@@ -2605,7 +2831,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 badgeColor: 'text-rose-400',
                 items: [
                   { type: 'LED' as GateType, label: 'LED Lamp', sub: 'Logic Probe' },
+                  { type: 'RGB_LED' as GateType, label: 'RGB LED', sub: 'Tri-Color Mix' },
                   { type: 'PROBE' as GateType, label: 'Digital Probe', sub: '0 / 1 / Z Readout' },
+                  { type: 'VOLTMETER' as GateType, label: 'Voltmeter', sub: 'DC Voltage Meter' },
                   { type: 'SEVEN_SEG' as GateType, label: '7-Segment LED', sub: 'a..g Numerals' },
                   { type: 'HEX_DISPLAY' as GateType, label: 'Hex Display', sub: '0-F Digital' },
                   { type: 'BAR_GRAPH' as GateType, label: 'Bar Graph', sub: '4-Level Lit' },
@@ -2623,11 +2851,17 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                   { type: 'INDUCTOR' as GateType, label: 'Inductor', sub: '10mH Choke' },
                   { type: 'DIODE' as GateType, label: 'Diode', sub: '1N4148 Rectifier' },
                   { type: 'ZENER_DIODE' as GateType, label: 'Zener Diode', sub: '5.1V Clamp' },
+                  { type: 'DIODE_SCHOTTKY' as GateType, label: 'Schottky Diode', sub: 'BAT54 Fast Barrier' },
+                  { type: 'LDR_PHOTORESISTOR' as GateType, label: 'LDR Sensor', sub: 'Photoresistor' },
                   { type: 'TRANSISTOR_NPN' as GateType, label: 'NPN Transistor', sub: '2N3904 Switch' },
+                  { type: 'TRANSISTOR_PNP' as GateType, label: 'PNP Transistor', sub: '2N3906 Switch' },
                   { type: 'MOSFET_N' as GateType, label: 'N-Ch MOSFET', sub: 'Switching FET' },
+                  { type: 'MOSFET_P' as GateType, label: 'P-Ch MOSFET', sub: 'Active-Low FET' },
                   { type: 'POTENTIOMETER' as GateType, label: 'Potentiometer', sub: 'Variable Divider' },
+                  { type: 'OP_AMP' as GateType, label: 'LM741 Op-Amp', sub: 'Comparator' },
+                  { type: 'IC_555' as GateType, label: 'NE555 Timer', sub: 'Pulse Generator' },
                   { type: 'RELAY' as GateType, label: 'SPDT Relay', sub: 'Isolated Switch' },
-                  { type: 'FUSE' as GateType, label: 'Fuse', sub: 'Overcurrent Protection' },
+                  { type: 'FUSE' as GateType, label: 'Fuse', sub: 'Protection' },
                 ],
               },
             ];
@@ -2689,7 +2923,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               {SAMPLE_CIRCUITS.map(sample => (
                 <button
                   key={sample.id}
-                  onClick={() => pushHistory(sample)}
+                  onClick={() => loadPresetCircuit(sample)}
                   className="w-full text-left truncate px-2 py-1.5 text-xs text-slate-300 hover:text-emerald-400 hover:bg-slate-800/80 rounded transition-colors"
                 >
                   {sample.name}
@@ -3041,7 +3275,10 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
               const isRegister = node.type === 'REGISTER_4BIT';
               const isLed = node.type === 'LED';
               const isFF = node.type.endsWith('_FF') || node.type === 'D_LATCH';
-              const isDiscrete = ['RESISTOR', 'CAPACITOR', 'INDUCTOR', 'DIODE', 'ZENER_DIODE', 'TRANSISTOR_NPN', 'MOSFET_N', 'POTENTIOMETER', 'RELAY', 'FUSE'].includes(node.type);
+              const isDiscrete = [
+                'RESISTOR', 'CAPACITOR', 'INDUCTOR', 'DIODE', 'ZENER_DIODE', 'TRANSISTOR_NPN', 'MOSFET_N', 'POTENTIOMETER', 'RELAY', 'FUSE',
+                'TRANSISTOR_PNP', 'MOSFET_P', 'DIODE_SCHOTTKY', 'LDR_PHOTORESISTOR', 'BATTERY_DC', 'GND', 'OP_AMP', 'IC_555', 'VOLTMETER', 'RGB_LED', 'SCHMITT_NOT', 'CRYSTAL_OSC'
+              ].includes(node.type);
               const isMsi = [
                 'HALF_ADDER', 'FULL_ADDER', 'HALF_SUB', 'FULL_SUB',
                 'MUX_2TO1', 'MUX_4TO1', 'MUX_8TO1', 'DEMUX_1TO2', 'DEMUX_1TO4',
@@ -3661,6 +3898,159 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                                 )}
                                 <text x={width / 2} y="64" fill={isBlown ? '#ef4444' : '#10b981'} fontSize="8" fontWeight="bold" textAnchor="middle">
                                   {isBlown ? '💥 BLOWN' : '2A FUSE'}
+                                </text>
+                              </g>
+                            );
+                          }
+                          case 'TRANSISTOR_PNP':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="45" y1="30" x2="45" y2="60" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="16" y1="45" x2="45" y2="45" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="45" y1="36" x2="72" y2="24" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="72" y1="24" x2="98" y2="24" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="45" y1="54" x2="72" y2="66" stroke="#f43f5e" strokeWidth="2" />
+                                <line x1="72" y1="66" x2="98" y2="66" stroke="#f43f5e" strokeWidth="2" />
+                                <polygon points="53,52 61,56 50,61" fill="#f43f5e" />
+                                <text x={width / 2} y="80" fill="#f43f5e" fontSize="8" fontWeight="bold" textAnchor="middle">2N3906 (PNP)</text>
+                              </g>
+                            );
+                          case 'MOSFET_P':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="16" y1="45" x2="40" y2="45" stroke="#ec4899" strokeWidth="2" />
+                                <line x1="40" y1="28" x2="40" y2="62" stroke="#ec4899" strokeWidth="2.5" strokeLinecap="round" />
+                                <line x1="48" y1="28" x2="48" y2="62" stroke="#ec4899" strokeWidth="2.5" strokeDasharray="6,4" strokeLinecap="round" />
+                                <line x1="48" y1="34" x2="72" y2="24" stroke="#ec4899" strokeWidth="2" />
+                                <line x1="72" y1="24" x2="98" y2="24" stroke="#ec4899" strokeWidth="2" />
+                                <line x1="48" y1="56" x2="72" y2="66" stroke="#ec4899" strokeWidth="2" />
+                                <line x1="72" y1="66" x2="98" y2="66" stroke="#ec4899" strokeWidth="2" />
+                                <polygon points="62,61 70,64 64,56" fill="#ec4899" />
+                                <text x={width / 2} y="80" fill="#ec4899" fontSize="8" fontWeight="bold" textAnchor="middle">P-MOSFET</text>
+                              </g>
+                            );
+                          case 'DIODE_SCHOTTKY':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <path d="M 16 40 L 40 40 M 64 40 L 88 40" stroke="#f59e0b" strokeWidth="2" />
+                                <polygon points="40,28 64,40 40,52" fill="#f59e0b30" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round" />
+                                <path d="M 58 26 L 64 26 L 64 54 L 70 54" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#f59e0b" fontSize="8.5" fontWeight="bold" textAnchor="middle">BAT54 Schottky</text>
+                              </g>
+                            );
+                          case 'LDR_PHOTORESISTOR':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <circle cx={width / 2} cy="38" r="18" fill="#eab30810" stroke="#eab308" strokeWidth="1.5" strokeDasharray="3 2" />
+                                <path d="M 20 38 L 30 38 L 36 30 L 44 46 L 52 30 L 60 46 L 68 30 L 74 38 L 84 38" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M 68 20 L 60 28 M 74 24 L 66 32" stroke="#fde047" strokeWidth="1.8" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#eab308" fontSize="8.5" fontWeight="bold" textAnchor="middle">LDR Sensor</text>
+                              </g>
+                            );
+                          case 'BATTERY_DC':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="20" y1="38" x2="40" y2="38" stroke="#10b981" strokeWidth="2" />
+                                <line x1="40" y1="24" x2="40" y2="52" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="50" y1="29" x2="50" y2="47" stroke="#64748b" strokeWidth="4.5" strokeLinecap="round" />
+                                <line x1="50" y1="38" x2="76" y2="38" stroke="#64748b" strokeWidth="2" />
+                                <text x="32" y="28" fill="#10b981" fontSize="10" fontWeight="bold">+</text>
+                                <text x="58" y="28" fill="#64748b" fontSize="10" fontWeight="bold">-</text>
+                                <text x={width / 2} y="66" fill="#10b981" fontSize="8.5" fontWeight="bold" textAnchor="middle">+5.0V DC</text>
+                              </g>
+                            );
+                          case 'GND':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="48" y1="24" x2="48" y2="38" stroke="#94a3b8" strokeWidth="2.5" />
+                                <line x1="28" y1="38" x2="68" y2="38" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="34" y1="44" x2="62" y2="44" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" />
+                                <line x1="41" y1="50" x2="55" y2="50" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+                                <text x={width / 2} y="66" fill="#94a3b8" fontSize="8.5" fontWeight="bold" textAnchor="middle">0V (GND)</text>
+                              </g>
+                            );
+                          case 'OP_AMP': {
+                            const vOutVal = node.outputs[0]?.value === 1;
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <polygon points="28,20 88,48 28,76" fill="#0284c720" stroke="#0284c7" strokeWidth="2" strokeLinejoin="round" />
+                                <text x="36" y="34" fill="#38bdf8" fontSize="12" fontWeight="bold">-</text>
+                                <text x="36" y="66" fill="#38bdf8" fontSize="12" fontWeight="bold">+</text>
+                                <line x1="88" y1="48" x2="110" y2="48" stroke={vOutVal ? '#10b981' : '#64748b'} strokeWidth="2" />
+                                <text x="56" y="52" fill="#38bdf8" fontSize="8" fontWeight="bold" textAnchor="middle">LM741</text>
+                              </g>
+                            );
+                          }
+                          case 'IC_555': {
+                            const isHigh = node.outputs[0]?.value === 1;
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <rect x="24" y="24" width="72" height="48" rx="4" fill="#0f172a" stroke={isHigh ? '#10b981' : '#475569'} strokeWidth="1.8" />
+                                <circle cx="34" cy="34" r="3" fill="#334155" />
+                                <text x="60" y="46" fill="#38bdf8" fontSize="11" fontFamily="monospace" fontWeight="bold" textAnchor="middle">NE555</text>
+                                <text x="60" y="60" fill={isHigh ? '#10b981' : '#94a3b8'} fontSize="8" fontWeight="bold" textAnchor="middle">
+                                  {isHigh ? '⚡ PULSE' : 'IDLE'}
+                                </text>
+                              </g>
+                            );
+                          }
+                          case 'VOLTMETER': {
+                            const val = node.inputs[0]?.value;
+                            const voltStr = val === 1 ? '+5.00 V' : val === 0 ? '0.00 V' : 'Hi-Z';
+                            const voltColor = val === 1 ? '#10b981' : val === 0 ? '#64748b' : '#f59e0b';
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <rect x="18" y="26" width="80" height="38" rx="5" fill="#020617" stroke={voltColor} strokeWidth="2" />
+                                <text x="58" y="44" fill={voltColor} fontSize="12" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
+                                  {voltStr}
+                                </text>
+                                <text x="58" y="56" fill="#64748b" fontSize="7.5" fontWeight="bold" textAnchor="middle">DC VOLTS</text>
+                              </g>
+                            );
+                          }
+                          case 'RGB_LED': {
+                            const r = node.inputs[0]?.value === 1 ? 255 : 30;
+                            const g = node.inputs[1]?.value === 1 ? 255 : 30;
+                            const b = node.inputs[2]?.value === 1 ? 255 : 30;
+                            const isLit = r > 30 || g > 30 || b > 30;
+                            const rgbColor = `rgb(${r}, ${g}, ${b})`;
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <circle
+                                  cx={width / 2}
+                                  cy="44"
+                                  r="18"
+                                  fill={rgbColor}
+                                  stroke={isLit ? '#ffffff' : '#475569'}
+                                  strokeWidth="2.5"
+                                  filter={isLit ? `drop-shadow(0 0 12px ${rgbColor})` : undefined}
+                                />
+                                <text x={width / 2} y="74" fill={isLit ? '#ffffff' : '#64748b'} fontSize="8" fontWeight="bold" textAnchor="middle">
+                                  RGB: {node.inputs[0]?.value ?? 0} {node.inputs[1]?.value ?? 0} {node.inputs[2]?.value ?? 0}
+                                </text>
+                              </g>
+                            );
+                          }
+                          case 'SCHMITT_NOT':
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <polygon points="30,24 70,42 30,60" fill="#0284c720" stroke="#0284c7" strokeWidth="2" strokeLinejoin="round" />
+                                <circle cx="74" cy="42" r="3.5" fill="#020617" stroke="#0284c7" strokeWidth="1.8" />
+                                <path d="M 44 48 L 52 48 L 52 36 L 60 36" fill="none" stroke="#38bdf8" strokeWidth="1.5" />
+                                <text x={width / 2} y="72" fill="#38bdf8" fontSize="8" fontWeight="bold" textAnchor="middle">7414 Schmitt</text>
+                              </g>
+                            );
+                          case 'CRYSTAL_OSC': {
+                            const isHigh = Boolean(node.state?.highValue);
+                            return (
+                              <g className="select-none pointer-events-none">
+                                <line x1="20" y1="40" x2="34" y2="40" stroke="#06b6d4" strokeWidth="2" />
+                                <line x1="34" y1="26" x2="34" y2="54" stroke="#06b6d4" strokeWidth="3" strokeLinecap="round" />
+                                <rect x="40" y="28" width="16" height="24" rx="2" fill="#083344" stroke="#06b6d4" strokeWidth="2" />
+                                <line x1="62" y1="26" x2="62" y2="54" stroke="#06b6d4" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="62" y1="40" x2="76" y2="40" stroke="#06b6d4" strokeWidth="2" />
+                                <text x={width / 2} y="66" fill={isHigh ? '#10b981' : '#06b6d4'} fontSize="8" fontWeight="bold" textAnchor="middle">
+                                  1.00 MHz
                                 </text>
                               </g>
                             );
@@ -4450,6 +4840,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       { type: 'SWITCH' as GateType, label: 'Switch', sub: '0 / 1 Toggle' },
                       { type: 'PUSH_BUTTON' as GateType, label: 'Push Button', sub: 'Tactile Click' },
                       { type: 'CLOCK' as GateType, label: 'Clock', sub: '1 Hz Pulse' },
+                      { type: 'BATTERY_DC' as GateType, label: '5V Battery', sub: 'DC Power Source' },
+                      { type: 'GND' as GateType, label: 'GND (0V)', sub: 'Ground Reference' },
+                      { type: 'CRYSTAL_OSC' as GateType, label: 'Crystal Osc', sub: '1 MHz Clock' },
                       { type: 'CONST_HIGH' as GateType, label: '+5V (VCC)', sub: 'Constant 1' },
                       { type: 'CONST_LOW' as GateType, label: 'GND (0V)', sub: 'Constant 0' },
                     ],
@@ -4460,6 +4853,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       { type: 'AND' as GateType, label: 'AND', sub: '2-Input' },
                       { type: 'OR' as GateType, label: 'OR', sub: '2-Input' },
                       { type: 'NOT' as GateType, label: 'NOT', sub: 'Inverter' },
+                      { type: 'SCHMITT_NOT' as GateType, label: 'Schmitt NOT', sub: '7414 Inverter' },
                       { type: 'NAND' as GateType, label: 'NAND', sub: '2-Input' },
                       { type: 'NOR' as GateType, label: 'NOR', sub: '2-Input' },
                       { type: 'XOR' as GateType, label: 'XOR', sub: '2-Input' },
@@ -4521,7 +4915,9 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                     title: 'Displays & Indicators',
                     items: [
                       { type: 'LED' as GateType, label: 'LED Lamp', sub: 'Logic Probe' },
+                      { type: 'RGB_LED' as GateType, label: 'RGB LED', sub: 'Tri-Color Mix' },
                       { type: 'PROBE' as GateType, label: 'Digital Probe', sub: '0 / 1 / Z Readout' },
+                      { type: 'VOLTMETER' as GateType, label: 'Voltmeter', sub: 'DC Voltage Meter' },
                       { type: 'SEVEN_SEG' as GateType, label: '7-Segment LED', sub: 'a..g Numerals' },
                       { type: 'HEX_DISPLAY' as GateType, label: 'Hex Display', sub: '0-F Digital' },
                       { type: 'BAR_GRAPH' as GateType, label: 'Bar Graph', sub: '4-Level Lit' },
@@ -4537,44 +4933,76 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                       { type: 'INDUCTOR' as GateType, label: 'Inductor', sub: '10mH Choke' },
                       { type: 'DIODE' as GateType, label: 'Diode', sub: '1N4148 Rectifier' },
                       { type: 'ZENER_DIODE' as GateType, label: 'Zener Diode', sub: '5.1V Clamp' },
+                      { type: 'DIODE_SCHOTTKY' as GateType, label: 'Schottky Diode', sub: 'BAT54 Fast Barrier' },
+                      { type: 'LDR_PHOTORESISTOR' as GateType, label: 'LDR Sensor', sub: 'Photoresistor' },
                       { type: 'TRANSISTOR_NPN' as GateType, label: 'NPN Transistor', sub: '2N3904 Switch' },
+                      { type: 'TRANSISTOR_PNP' as GateType, label: 'PNP Transistor', sub: '2N3906 Switch' },
                       { type: 'MOSFET_N' as GateType, label: 'N-Ch MOSFET', sub: 'Switching FET' },
+                      { type: 'MOSFET_P' as GateType, label: 'P-Ch MOSFET', sub: 'Active-Low FET' },
                       { type: 'POTENTIOMETER' as GateType, label: 'Potentiometer', sub: 'Variable Divider' },
+                      { type: 'OP_AMP' as GateType, label: 'LM741 Op-Amp', sub: 'Comparator' },
+                      { type: 'IC_555' as GateType, label: 'NE555 Timer', sub: 'Pulse Generator' },
                       { type: 'RELAY' as GateType, label: 'SPDT Relay', sub: 'Isolated Switch' },
-                      { type: 'FUSE' as GateType, label: 'Fuse', sub: 'Overcurrent Protection' },
+                      { type: 'FUSE' as GateType, label: 'Fuse', sub: 'Protection' },
                     ],
                   },
                 ];
 
-                return mobileSections.map(sec => {
-                  const filtered = sec.items.filter(item => matches(item.type, item.label, item.sub));
-                  if (filtered.length === 0) return null;
-                  return (
-                    <div key={sec.title} className="space-y-1.5">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{sec.title}</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {filtered.map(item => (
+                return (
+                  <>
+                    {mobileSections.map(sec => {
+                      const filtered = sec.items.filter(item => matches(item.type, item.label, item.sub));
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div key={sec.title} className="space-y-1.5">
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{sec.title}</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {filtered.map(item => (
+                              <button
+                                key={item.type}
+                                onClick={() => {
+                                  addComponent(item.type);
+                                  setShowMobilePaletteModal(false);
+                                }}
+                                className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-750 text-left border border-slate-700/80 active:bg-cyan-950 transition-all flex items-center gap-2.5 shadow-sm active:scale-98"
+                              >
+                                <div className="flex h-9 w-10 items-center justify-center rounded-lg bg-slate-900 border border-slate-700/60 shrink-0 shadow-inner">
+                                  <ComponentSymbolIcon type={item.type} className="h-5 w-6 shrink-0" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-bold text-xs text-white truncate">{item.label}</div>
+                                  <div className="text-[10px] text-slate-400 truncate">{item.sub}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Presets Quick Picker in Mobile Modal */}
+                    <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                      <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>⚡ Sample Circuit Presets</span>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {SAMPLE_CIRCUITS.map(sample => (
                           <button
-                            key={item.type}
+                            key={sample.id}
                             onClick={() => {
-                              addComponent(item.type);
+                              loadPresetCircuit(sample);
                               setShowMobilePaletteModal(false);
                             }}
-                            className="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-750 text-left border border-slate-700/80 active:bg-cyan-950 transition-all flex items-center gap-2.5 shadow-sm active:scale-98"
+                            className="p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-700 border border-slate-700/60 text-left transition-colors"
                           >
-                            <div className="flex h-9 w-10 items-center justify-center rounded-lg bg-slate-900 border border-slate-700/60 shrink-0 shadow-inner">
-                              <ComponentSymbolIcon type={item.type} className="h-5 w-6 shrink-0" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-bold text-xs text-white truncate">{item.label}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{item.sub}</div>
-                            </div>
+                            <div className="text-xs font-bold text-emerald-400 truncate">{sample.name}</div>
+                            <div className="text-[10px] text-slate-400 line-clamp-1">{sample.description}</div>
                           </button>
                         ))}
                       </div>
                     </div>
-                  );
-                });
+                  </>
+                );
               })()}
             </div>
           </div>

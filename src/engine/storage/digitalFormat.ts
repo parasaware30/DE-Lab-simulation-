@@ -97,6 +97,18 @@ const DELAB_TO_DIGITAL_TYPE: Record<GateType, string> = {
   'POTENTIOMETER': 'Potentiometer',
   'RELAY': 'Relay',
   'FUSE': 'Fuse',
+  'TRANSISTOR_PNP': 'Transistor',
+  'MOSFET_P': 'PFET',
+  'DIODE_SCHOTTKY': 'Diode',
+  'LDR_PHOTORESISTOR': 'Resistor',
+  'BATTERY_DC': 'VDD',
+  'GND': 'Ground',
+  'OP_AMP': 'Comparator',
+  'IC_555': 'Timer',
+  'VOLTMETER': 'Probe',
+  'RGB_LED': 'Out',
+  'SCHMITT_NOT': 'Not',
+  'CRYSTAL_OSC': 'Clock',
   'COMMENT': 'Text',
 };
 

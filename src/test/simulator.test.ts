@@ -416,4 +416,84 @@ describe('Circuit Simulator & Validator', () => {
     expect(latch?.outputs[0].value).toBe(1); // Q
     expect(latch?.outputs[1].value).toBe(0); // Q'
   });
+
+  it('correctly simulates PNP transistor, P-MOSFET, Op-Amp comparator, and 5V battery', () => {
+    const mixedCircuit: Circuit = {
+      id: 'mixed_test',
+      name: 'Mixed Signal Test',
+      createdAt: 0,
+      updatedAt: 0,
+      nodes: [
+        {
+          id: 'bat1',
+          type: 'BATTERY_DC',
+          label: '5V VCC',
+          x: 0,
+          y: 0,
+          inputs: [],
+          outputs: [{ id: 'out_0', name: '+5V', type: 'output', value: 0 }],
+        },
+        {
+          id: 'gnd1',
+          type: 'GND',
+          label: 'GND',
+          x: 0,
+          y: 100,
+          inputs: [],
+          outputs: [{ id: 'out_0', name: 'GND', type: 'output', value: 1 }],
+        },
+        {
+          id: 'pnp1',
+          type: 'TRANSISTOR_PNP',
+          label: 'PNP BJT',
+          x: 100,
+          y: 0,
+          inputs: [
+            { id: 'in_0', name: 'B', type: 'input', value: 0 }, // Base LOW -> conducts
+            { id: 'in_1', name: 'C', type: 'input', value: 1 },
+          ],
+          outputs: [{ id: 'out_0', name: 'E', type: 'output', value: 0 }],
+        },
+        {
+          id: 'opamp1',
+          type: 'OP_AMP',
+          label: 'LM741 Comp',
+          x: 100,
+          y: 100,
+          inputs: [
+            { id: 'in_0', name: 'V+', type: 'input', value: 1 }, // V+ > V- -> Saturation 1
+            { id: 'in_1', name: 'V-', type: 'input', value: 0 },
+          ],
+          outputs: [{ id: 'out_0', name: 'Vout', type: 'output', value: 0 }],
+        },
+        {
+          id: 'schmitt1',
+          type: 'SCHMITT_NOT',
+          label: 'Schmitt NOT',
+          x: 100,
+          y: 200,
+          inputs: [{ id: 'in_0', name: 'A', type: 'input', value: 1 }],
+          outputs: [{ id: 'out_0', name: 'Y', type: 'output', value: 0 }],
+        },
+      ],
+      wires: [],
+    };
+
+    const res = simulateCircuit(mixedCircuit);
+    expect(res.nodes.find(n => n.id === 'bat1')?.outputs[0].value).toBe(1);
+    expect(res.nodes.find(n => n.id === 'gnd1')?.outputs[0].value).toBe(0);
+    expect(res.nodes.find(n => n.id === 'pnp1')?.outputs[0].value).toBe(1);
+    expect(res.nodes.find(n => n.id === 'opamp1')?.outputs[0].value).toBe(1);
+    expect(res.nodes.find(n => n.id === 'schmitt1')?.outputs[0].value).toBe(0);
+  });
+
+  it('verifies all sample circuits validate and simulate with compact coordinates', () => {
+    SAMPLE_CIRCUITS.forEach(sample => {
+      const validation = validateCircuit(sample);
+      expect(validation.isValid).toBe(true);
+
+      const sim = simulateCircuit(sample);
+      expect(sim.isValid).toBe(true);
+    });
+  });
 });

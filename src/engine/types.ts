@@ -72,6 +72,19 @@ export type GateType =
   | 'POTENTIOMETER'
   | 'RELAY'
   | 'FUSE'
+  // Extended & Mixed-Signal Electronic Components
+  | 'TRANSISTOR_PNP'
+  | 'MOSFET_P'
+  | 'DIODE_SCHOTTKY'
+  | 'LDR_PHOTORESISTOR'
+  | 'BATTERY_DC'
+  | 'GND'
+  | 'OP_AMP'
+  | 'IC_555'
+  | 'VOLTMETER'
+  | 'RGB_LED'
+  | 'SCHMITT_NOT'
+  | 'CRYSTAL_OSC'
   // Documentation
   | 'COMMENT';
 
@@ -106,6 +119,8 @@ export interface CircuitNode {
     relayState?: boolean; // for RELAY
     fuseBlown?: boolean; // for FUSE
     potValue?: number; // for POTENTIOMETER (0 to 100)
+    lightLevel?: number; // for LDR_PHOTORESISTOR (0 to 100)
+    voltage?: number; // for BATTERY_DC / VOLTMETER
   };
 }
 
