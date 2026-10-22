@@ -37,6 +37,18 @@
   background: #475569;
 }
 
+/* Hide scrollbars for utility class .no-scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+
 /* Circuit grid background pattern */
 .circuit-grid {
   background-size: 20px 20px;

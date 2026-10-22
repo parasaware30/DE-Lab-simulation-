@@ -130,9 +130,14 @@ export const DashboardModule: React.FC<DashboardProps> = ({
       {/* Hero Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 p-6 sm:p-8">
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Digital Electronics Virtual Laboratory</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Digital Electronics Virtual Laboratory</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-300">
+              <span>Created by Paras Aware</span>
+            </div>
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
@@ -340,6 +345,12 @@ export const DashboardModule: React.FC<DashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Footer / Credits */}
+      <footer className="mt-8 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2 pb-6">
+        <p>DE-Lab Pro v2.5 · Digital Electronics Virtual Laboratory</p>
+        <p className="text-slate-400 font-medium">Created by <span className="text-emerald-400 font-semibold">Paras Aware</span></p>
+      </footer>
     </div>
   );
 };

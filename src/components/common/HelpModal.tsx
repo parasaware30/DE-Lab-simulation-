@@ -92,8 +92,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         {/* Section 4: College Capstone Project Team */}
         <div className="border-t border-slate-800 pt-4 text-xs text-slate-400 space-y-1">
           <p className="font-semibold text-slate-300">DE-Lab Pro — Digital Electronics Virtual Laboratory</p>
-          <p>Engineered for a four-member college Digital Electronics mini-project team.</p>
-          <p className="text-[11px] text-slate-500">100% deterministic, zero AI chatbot dependency, client-side offline persistence.</p>
+          <p className="text-emerald-400 font-semibold">Created by Paras Aware</p>
+          <p className="text-[11px] text-slate-500">100% deterministic logic simulation engine, client-side offline persistence.</p>
         </div>
       </div>
     </div>

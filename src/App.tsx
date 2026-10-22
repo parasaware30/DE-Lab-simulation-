@@ -56,7 +56,7 @@ export function App() {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen flex flex-col ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className={`h-screen h-[100dvh] flex flex-col overflow-hidden ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
         {/* Top Navbar */}
         <Navbar
           activeModule={activeModule}
@@ -70,7 +70,7 @@ export function App() {
         />
 
         {/* Body Layout: Sidebar + Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden min-h-0">
           <Sidebar
             activeModule={activeModule}
             setActiveModule={setActiveModule}
@@ -78,7 +78,7 @@ export function App() {
             setIsMobileMenuOpen={setIsMobileMenuOpen}
           />
 
-          <main className="flex-1 overflow-y-auto relative">
+          <main className="flex-1 overflow-y-auto relative min-h-0">
             {activeModule === 'dashboard' && (
               <DashboardModule
                 onSelectModule={mod => setActiveModule(mod)}

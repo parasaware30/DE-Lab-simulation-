@@ -88,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar container */}
       <aside 
-        className={`fixed top-16 bottom-0 left-0 z-40 w-64 shrink-0 border-r border-slate-800 bg-slate-900/95 p-3 overflow-y-auto transition-transform duration-200 ease-in-out md:static md:top-auto md:bottom-auto md:translate-x-0 ${
+        className={`fixed top-16 bottom-0 left-0 z-40 w-64 shrink-0 border-r border-slate-800 bg-slate-900/95 p-3 overflow-y-auto transition-transform duration-200 ease-in-out md:static md:top-auto md:bottom-auto md:h-full md:translate-x-0 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
@@ -128,8 +128,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* College Team Footer */}
         <div className="mt-8 rounded-lg border border-slate-800 bg-slate-950/40 p-3 text-[11px] text-slate-400">
-          <p className="font-semibold text-slate-300">Engineering Virtual Lab</p>
-          <p className="text-[10px] text-slate-500 mt-0.5">Four-Member College Capstone Team</p>
+          <p className="font-semibold text-slate-200">DE-Lab Pro Virtual Lab</p>
+          <p className="text-[11px] text-emerald-400 font-semibold mt-0.5">Created by Paras Aware</p>
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Simulation Engine Online</span>

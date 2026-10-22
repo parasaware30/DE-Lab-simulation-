@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
+    <header className="h-16 shrink-0 sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         {/* Brand & Mobile Menu Trigger */}
         <div className="flex items-center gap-3">
@@ -89,7 +89,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   v2.5
                 </span>
               </div>
-              <p className="hidden text-[10px] text-slate-400 sm:block">Digital Electronics Virtual Laboratory</p>
+              <p className="text-[9px] sm:text-[10px] text-slate-400 leading-tight">
+                <span className="hidden sm:inline">Digital Electronics Virtual Laboratory · </span>
+                <span className="text-emerald-400 font-semibold">Created by Paras Aware</span>
+              </p>
             </div>
           </button>
         </div>

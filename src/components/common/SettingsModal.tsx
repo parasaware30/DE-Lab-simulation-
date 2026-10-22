@@ -71,8 +71,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        <div className="text-[11px] text-slate-500 border-t border-slate-800 pt-3">
-          DE-Lab Pro v2.5 · All data remains strictly local in your browser.
+        <div className="text-[11px] text-slate-500 border-t border-slate-800 pt-3 flex items-center justify-between">
+          <span>DE-Lab Pro v2.5 · Local Offline Lab</span>
+          <span className="text-emerald-400 font-semibold">Created by Paras Aware</span>
         </div>
       </div>
     </div>

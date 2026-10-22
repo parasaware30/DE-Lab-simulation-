@@ -1919,9 +1919,21 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // Helper to determine if an event target is the canvas background
+  const isCanvasBackgroundTarget = (target: EventTarget | null) => {
+    if (!target) return true;
+    const elem = target as HTMLElement | SVGElement;
+    if (elem === svgRef.current) return true;
+    if (elem.getAttribute?.('data-is-canvas-bg') === 'true') return true;
+    if (elem.closest?.('[data-node-id], [data-is-port="true"], .group, button, input, textarea')) {
+      return false;
+    }
+    return true;
+  };
+
   // Canvas Mouse events for Dragging, Resizing & Panning
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1 || e.altKey || (editorMode === 'SELECT' && e.target === svgRef.current)) {
+    if (e.button === 1 || e.button === 2 || e.altKey || (!wireStart && isCanvasBackgroundTarget(e.target))) {
       setIsPanning(true);
       setStartPanMouse({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
@@ -1960,12 +1972,37 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           if (n.id === draggingNodeId) {
             return {
               ...n,
-              x: Math.max(20, Math.round((coords.x - dragOffset.x) / 10) * 10),
-              y: Math.max(20, Math.round((coords.y - dragOffset.y) / 10) * 10),
+              x: Math.round((coords.x - dragOffset.x) / 10) * 10,
+              y: Math.round((coords.y - dragOffset.y) / 10) * 10,
             };
           }
           return n;
         }),
+      }));
+    }
+  };
+
+  // Smooth Mouse Wheel / Trackpad Pan & Zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      const newZoom = Math.max(0.25, Math.min(3.0, Number((zoom * zoomFactor).toFixed(2))));
+      if (newZoom !== zoom && svgRef.current) {
+        const rect = svgRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const newPanX = mouseX - (mouseX - pan.x) * (newZoom / zoom);
+        const newPanY = mouseY - (mouseY - pan.y) * (newZoom / zoom);
+        setZoom(newZoom);
+        setPan({ x: Math.round(newPanX), y: Math.round(newPanY) });
+      }
+    } else {
+      const dx = e.shiftKey ? -e.deltaY : -e.deltaX;
+      const dy = e.shiftKey ? 0 : -e.deltaY;
+      setPan(prev => ({
+        x: Math.round(prev.x + dx),
+        y: Math.round(prev.y + dy),
       }));
     }
   };
@@ -1976,7 +2013,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       const coords = getCanvasCoords(touch.clientX, touch.clientY);
       setMousePos(coords);
 
-      if (e.target === svgRef.current) {
+      if (!wireStart && isCanvasBackgroundTarget(e.target)) {
         setIsPanning(true);
         setStartPanMouse({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
       }
@@ -2072,8 +2109,8 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             if (n.id === draggingNodeId) {
               return {
                 ...n,
-                x: Math.max(20, Math.round((coords.x - dragOffset.x) / 10) * 10),
-                y: Math.max(20, Math.round((coords.y - dragOffset.y) / 10) * 10),
+                x: Math.round((coords.x - dragOffset.x) / 10) * 10,
+                y: Math.round((coords.y - dragOffset.y) / 10) * 10,
               };
             }
             return n;
@@ -2131,7 +2168,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
       ignoreNextCanvasClickRef.current = false;
       return;
     }
-    if (e.target === svgRef.current) {
+    if (isCanvasBackgroundTarget(e.target)) {
       if (wireStart) {
         setWireStart(null);
         setHoveredPort(null);
@@ -2379,7 +2416,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
         )}
 
         {/* Center: Tools (Select, Wire, Undo, Redo, Zoom) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full md:w-auto py-0.5 shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full md:w-auto py-1.5 shrink-0">
           <button
             onClick={() => { setEditorMode('SELECT'); setWireStart(null); }}
             title="Select & Move Mode"
@@ -2616,32 +2653,32 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           <div className="h-4 w-[1px] bg-slate-800 mx-1" />
 
           {/* Zoom Controller in Toolbar (Image 1 Style: [-] 100% [+] [⤢]) */}
-          <div className="flex items-center gap-0.5 rounded-lg bg-slate-950/80 border border-slate-700/80 px-1 py-0.5 shrink-0">
+          <div className="flex items-center gap-1 rounded-xl bg-slate-950/90 border border-slate-700/90 px-1.5 py-1 shrink-0 my-0.5 shadow-sm ring-1 ring-white/5">
             <button
               onClick={handleZoomOut}
               title="Zoom Out"
-              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={handleResetZoom}
               title="Reset Zoom to 100%"
-              className="text-[11px] font-mono font-bold text-sky-400 hover:text-sky-300 px-1.5 py-0.5 rounded hover:bg-slate-800/60 text-center"
+              className="text-xs font-mono font-bold text-sky-400 hover:text-sky-300 px-1.5 py-0.5 rounded hover:bg-slate-800/80 active:scale-95 transition-all text-center leading-none"
             >
               {Math.round(zoom * 100)}%
             </button>
             <button
               onClick={handleZoomIn}
               title="Zoom In"
-              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={handleFitToScreen}
               title="Fit to Screen"
-              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center"
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
@@ -2935,8 +2972,13 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
 
         {/* Central SVG Interactive Canvas */}
         <div 
-          className="flex-1 relative h-full circuit-grid overflow-hidden select-none touch-none"
-          style={{ touchAction: 'none' }}
+          className={`flex-1 relative h-full circuit-grid overflow-hidden select-none touch-none ${
+            isPanning ? 'cursor-grabbing' : editorMode === 'WIRE' ? 'cursor-crosshair' : 'cursor-grab'
+          }`}
+          style={{ 
+            touchAction: 'none',
+            backgroundPosition: `${pan.x}px ${pan.y}px`,
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -2944,31 +2986,35 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onClick={handleCanvasClick}
+          onWheel={handleWheel}
+          onContextMenu={e => {
+            if (isCanvasBackgroundTarget(e.target)) e.preventDefault();
+          }}
         >
           {/* Floating Canvas Zoom & View Controls (Image 1 replica: [-] 100% [+] [⤢]) */}
           <div 
-            className="absolute bottom-5 right-4 z-30 flex items-center gap-1 rounded-xl bg-slate-900/95 border border-slate-700/80 px-2 py-1 shadow-2xl backdrop-blur-md select-none"
+            className="absolute bottom-4 right-3 md:bottom-5 md:right-4 z-30 flex items-center gap-1 rounded-xl bg-slate-900/95 border border-slate-700/80 px-2.5 py-1.5 shadow-2xl backdrop-blur-md select-none ring-1 ring-white/10"
             onClick={e => e.stopPropagation()}
             onTouchStart={e => e.stopPropagation()}
           >
             <button
               onClick={handleZoomOut}
               title="Zoom Out"
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center"
             >
               <ZoomOut className="h-4 w-4" />
             </button>
             <button
               onClick={handleResetZoom}
               title="Reset Zoom (100%)"
-              className="px-2 py-0.5 text-xs font-mono font-bold text-sky-400 hover:text-sky-300 rounded hover:bg-slate-800/80 active:scale-95 transition-all"
+              className="px-2 py-0.5 text-xs font-mono font-bold text-sky-400 hover:text-sky-300 rounded hover:bg-slate-800/80 active:scale-95 transition-all text-center leading-none"
             >
               {Math.round(zoom * 100)}%
             </button>
             <button
               onClick={handleZoomIn}
               title="Zoom In"
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center"
             >
               <ZoomIn className="h-4 w-4" />
             </button>
@@ -2976,7 +3022,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
             <button
               onClick={handleFitToScreen}
               title="Fit All Circuit Components to Screen"
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center"
             >
               <Maximize2 className="h-4 w-4" />
             </button>
@@ -3027,12 +3073,23 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
           {/* Main SVG Render Surface */}
           <svg
             ref={svgRef}
-            className="w-full h-full cursor-crosshair"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: '0 0',
-            }}
+            className="w-full h-full cursor-crosshair overflow-hidden"
           >
+            {/* Background Canvas Pan Catcher */}
+            <rect
+              width="100%"
+              height="100%"
+              fill="transparent"
+              data-is-canvas-bg="true"
+            />
+
+            {/* Transform Group for Infinite Pan & Zoom */}
+            <g
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: '0 0',
+              }}
+            >
             {/* Existing Circuit Wires */}
             {simResult.wires.map(wire => {
               const fromNode = simResult.nodes.find(n => n.id === wire.fromNodeId);
@@ -4267,6 +4324,7 @@ export const CircuitEditorModule: React.FC<CircuitEditorProps> = ({
                 </g>
               );
             })}
+            </g>
           </svg>
         </div>
 
